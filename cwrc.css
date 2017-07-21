@@ -96,10 +96,19 @@ div.az_list {
 
 .uri {
     font-family:monospace; 
-    font-size:0.em;
+    font-size:1em;
 }
 
 #top {
     float: right; 
-    Font-size: small;
+    font-size: small;
+}
+
+span.list-item {
+    display: inline-block;
+    margin-right: 5px; 
+}
+
+span.list-item:first-child {
+    margin-left: 5px; 
 }

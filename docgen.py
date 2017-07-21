@@ -158,7 +158,7 @@ def create_link_lists(list, name):
     """
     string = "<p>%s" % name
     for x in list:
-        string += '<a href="#%s">%s</a>, ' % (x, x)
+        string += '<span class="list-item"><a href="#%s">%s</a>,</span>' % (x, x)
     string += "</p>"
     # string.trim
     ' '.join(string.split())
@@ -341,7 +341,7 @@ def create_dictionary_html(graph, dictionary):
         html_str += """<p><em>%s</em>- %s</p>""" % (label, get_definition_dict(graph, uri))
         html_str += """<div class = "conceptlist">"""
         instance_list = [str(s).split("#")[1] for s, p, o in graph.triples((None, SKOS.inScheme, uri))]
-        html_str += create_link_lists(instance_list, "Concepts: ")
+        html_str += create_link_lists(instance_list, "Concepts:")
         html_str += "</div>\n"
         if comment:
             html_str += "<p>Comment: %s</p>" % comment
@@ -352,13 +352,13 @@ def create_dictionary_html(graph, dictionary):
 def get_term_html(term_dict):
     label = str(term_dict["label"])
     uri = str(term_dict["uri"])
-    term = uri.split("ontologies/")[1]
+    term = uri.split("#")[1]
     comment = term_dict["comment"]
     defn = str(term_dict["defn"])
     replacement = str(term_dict["replacement"])
 
     html_str = ""
-    html_str += '<div class="specterm" id="%s">\n<h3>Term: %s</h3>\n' % (term, term)
+    html_str += '<div class="specterm" id="%s">\n<h3>Term: cwrc:%s</h3>\n' % (term, term)
     html_str += """<p class="uri">URI: <a href="%s">%s</a></p>\n""" % (uri, uri)
     html_str += """<p><em>%s</em>- %s</p>""" % (label, defn)
     if comment:
@@ -383,10 +383,12 @@ select * where {
     #     print(x)
 
     deprecated_uris = sorted(deprecated_uris)
+    terms = [str(s).split("#")[1] for s in deprecated_uris]
     # print("Deprecated terms\n\n")
 
-    html_str = ""
-
+    html_str = '<h3>Global Cross Reference of Deprecated Terms</h3><div class="az_list">'
+    html_str += create_link_lists(terms, "Deprecated Terms:")
+    html_str += '</div><h3>Detailed references for all terms, classes and properties</h3>'
     for uri in deprecated_uris:
 
         query_str = """
