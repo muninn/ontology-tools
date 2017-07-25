@@ -28,7 +28,7 @@ classranges = {}
 classdomains = {}
 spec_url = None
 spec_ns = None
-spec_pre = "cwrc"
+spec_pre = None
 lang = None
 
 ns_list = {
@@ -182,51 +182,6 @@ def get_azlist_html(az_dict, list):
     return string
 
 
-def get_rdfs(graph, uri):
-    """Summary
-
-    Args:
-        graph (TYPE): Description
-        uri (TYPE): Description
-
-    Returns:
-        TYPE: Description
-    """
-    # "Returns label and comment given an RDF.Node with a URI in it"
-    comment = ''
-    label = ''
-    print("\nComment:")
-    for s, p, o in graph.triples((uri, RDFS.comment, None)):
-        print(s)
-        print(p)
-        print(o)
-        print(type(o))
-    return label, comment
-
-
-def terms_html(name, list, graph):
-    """Summary
-
-    Args:
-        name (TYPE): Description
-        list (TYPE): Description
-        graph (TYPE): Description
-
-    Returns:
-        TYPE: Description
-    """
-    doc = ""
-    print(spec_pre)
-    for item in list:
-        doc += """<div class="specterm" id="%s">\n""" % (item)
-        doc += """\t<h3>%s: %s:%s</h3>\n""" % (name, spec_pre, item)
-        term_uri = spec_ns[item]
-        doc += """\t<p class="uri">URI: <a href="%s">%s</a></p>\n""" % (term_uri, term_uri)
-        label, comment = get_rdfs(graph, term_uri)
-        doc += "</div>\n\n"
-    return doc
-
-
 def specgen(specloc, template, language):
     """Summary
 
@@ -267,9 +222,6 @@ def specgen(specloc, template, language):
     spec_ns = rdflib.Namespace(spec_url)
     ns_list[spec_pre] = spec_url
 
-    # Adding any of the missing author information
-    template = template % (get_authors(graph), "%s", "%s", "%s")
-
     # Gets sorted classes & property labels
     class_list = [x.split("#")[1] for x in sorted(graph.subjects(None, OWL.Class))]
     prop_list = [x.split("#")[1] for x in sorted(graph.subjects(None, OWL.ObjectProperty))]
@@ -294,18 +246,57 @@ def specgen(specloc, template, language):
     temp_list = ["Dictionaries:", "Classes:", "Properties:", "Instances:"]
     azlist_html = get_azlist_html(az_dict, temp_list)
 
-    # print(azlist_html)
-
     dict_html = create_dictionary_html(graph, skos_concepts)
+    classes_html = "<h3 id='classes'>Classes</h3>" + create_term_html(graph, class_list, "Class")
+    prop_html = "<h3 id='properties'>Properties</h3>" + create_term_html(graph, prop_list, "Property")
+    instance_html = "<h3 id='instances'>Instances</h3>" + create_term_html(graph, instance_list, "Instance")
     deprecated_html = create_deprecated_html(graph)
 
-    template = template % (azlist_html, dict_html, deprecated_html)
-    print(template)
+    terms_html = dict_html + classes_html + prop_html + instance_html
+
+    template = template.format(authors=get_authors(graph), azlist=azlist_html,
+                               terms=terms_html, deprecated=deprecated_html)
+
+    # template = template % (azlist_html, terms_html, deprecated_html)
+    # print(template)
+
+    # temp_str = "lol{dict}".format(dict=dict_html)
+    # print(temp_str)
+
     return template
+
+
+def create_term_html(graph, list, list_type):
+    # html_str = "<h3>%s</h3>" % list_type
+    html_str = ""
+    for x in list:
+        uri = get_full_uri(x)
+        # print(uri)
+        # print(get_label_dict(graph, uri))
+        # print(get_definition_dict(graph, uri))
+        # print(get_comment_dict(graph, uri))
+        # print("\n")
+
+        term_dict = {
+            "uri": uri,
+            "label": get_label_dict(graph, uri),
+            "defn": get_definition_dict(graph, uri),
+            "comment": get_comment_dict(graph, uri),
+            # "replacement": replacement,
+        }
+        print(list_type)
+        if list_type == "Instance":
+            print("it's a fucking instance")
+            term_dict["rdf-type"] = get_rdf_type(graph, uri)
+        html_str += get_term_html(term_dict, list_type)
+        # print(get_term_html(term_dict))
+        # print("\n\n\n\n\n")
+    return html_str
 
 
 def get_comment_dict(graph, uri):
     comment = [o for s, p, o in graph.triples(((uri, RDFS.comment, None)))]
+
     for x in comment:
         if x.language == lang:
             return x
@@ -319,6 +310,46 @@ def get_label_dict(graph, uri):
             return x
     return (None)
 
+    # <rdf:type rdf:resource="http://www.w3.org/2004/02/skos/core#Concept"/>
+    # <skos:inScheme rdf:resource="#Religion"/>
+
+
+def split_uri(uri):
+    uri_list = []
+    if "#" in uri:
+        uri_list.append(uri.split("#")[0] + "#")
+        uri_list.append(uri.split("#")[1])
+    else:
+        temp = uri.split("/")
+        ident = temp[-1]
+        uri_list.append(uri.split(ident)[0] + "/")
+        uri_list.append(ident)
+    return uri_list
+
+
+def get_rdf_type(graph, uri):
+    rdf = [o for s, p, o in graph.triples(((uri, RDF.type, None)))]
+    # print(type(rdf))
+    rdf_list = []
+    # print(uri)
+    # print(rdf)
+    test = "http://xmlns.com/foaf/0.1#Organization"
+    split_uri(test)
+    exit()
+    for x in rdf:
+        print(x)
+        if '#' not in x:
+            # if str(x) == "http://xmlns.com/foaf/0.1/Organization":
+            temp = split_uri(uri)[1]
+        else:
+            temp = x.split("#")[1]
+
+        rdf_list.append(temp)
+        # exit()
+        # rdf_list.append(x.split("#")[1])
+    print("\n\n")
+    return (rdf_list)
+
 
 def get_definition_dict(graph, uri):
     defn = [o for s, p, o in graph.triples(((uri, SKOS.definition, None)))]
@@ -328,7 +359,7 @@ def get_definition_dict(graph, uri):
 
 
 def create_dictionary_html(graph, dictionary):
-    html_str = "<h3>Dictionaries</h3>"
+    html_str = "<h3 id= 'Dictionaries'>Dictionaries</h3>"
 
     for term in dictionary:
         uri = spec_url + term
@@ -336,7 +367,8 @@ def create_dictionary_html(graph, dictionary):
         comment = get_comment_dict(graph, uri)
 
         # print("Term: %s\n" % term)
-        html_str += '<div class="specterm" id="%s">\n<h3>Dictionary: cwrc:%s</h3>\n' % (term, term)
+        html_str += '<div class="specterm" id="%s">\n<h3>Dictionary: %s:%s</h3>\n' % (term, spec_pre, term)
+        html_str += '<p>[<a href="#definition_list">back to top</a>]</p>'
         html_str += """<p class="uri">URI: <a href="%s">%s</a></p>\n""" % (uri, uri)
         html_str += """<p><em>%s</em>- %s</p>""" % (label, get_definition_dict(graph, uri))
         html_str += """<div class = "conceptlist">"""
@@ -349,7 +381,38 @@ def create_dictionary_html(graph, dictionary):
     return html_str
 
 
-def get_term_html(term_dict):
+def get_term_html(term_dict, term_type):
+    label = str(term_dict["label"])
+    uri = str(term_dict["uri"])
+    term = uri.split("#")[1]
+    comment = term_dict["comment"]
+    defn = str(term_dict["defn"])
+    # rdf_type1 = str(term_dict["rdf-type"])
+    if term_type == "Instance":
+        rdf_types = term_dict["rdf-type"]
+        # rdf_type1 = str(term_dict["rdf-type"][0])
+
+    html_str = ""
+    html_str += '<div class="specterm" id="%s">\n<h3>%s: %s:%s</h3>\n' % (term, term_type, spec_pre, term)
+    html_str += '<p>[<a href="#definition_list">back to top</a>]</p>'
+    html_str += """<p class="uri">URI: <a href="%s">%s</a></p>\n""" % (uri, uri)
+    html_str += """<p><em>%s</em>- %s</p>""" % (label, defn)
+    if comment:
+        html_str += "<p>Comment: %s</p>" % comment
+
+    if term_type == "Instance":
+        html_str += "<dl>\n"
+        html_str += "<dt>RDF Type:</dt>\n"
+        for x in rdf_types:
+            html_str += '<dd><a href="#%s" style="font-family: monospace;">cwrc:%s</a></dd>' % (str(x), str(x))
+        html_str += "</dl>"
+
+    # html_str += """<p class="uri">Replaced by: <a href="%s">%s</a></p>\n""" % (replacement, replacement)
+    html_str += "</div>\n"
+    return html_str
+
+
+def get_dep_term_html(term_dict):
     label = str(term_dict["label"])
     uri = str(term_dict["uri"])
     term = uri.split("#")[1]
@@ -358,7 +421,7 @@ def get_term_html(term_dict):
     replacement = str(term_dict["replacement"])
 
     html_str = ""
-    html_str += '<div class="specterm" id="%s">\n<h3>Term: cwrc:%s</h3>\n' % (term, term)
+    html_str += '<div class="specterm" id="%s">\n<h3>Term: %s:%s</h3>\n' % (term, spec_pre, term)
     html_str += """<p class="uri">URI: <a href="%s">%s</a></p>\n""" % (uri, uri)
     html_str += """<p><em>%s</em>- %s</p>""" % (label, defn)
     if comment:
@@ -423,8 +486,8 @@ select * where {
             "defn": defn,
             "replacement": replacement,
         }
-        html_str += get_term_html(term_dict)
-        # print(get_term_html(term_dict))
+        html_str += get_dep_term_html(term_dict)
+        # print(get_dep_term_html(term_dict))
 
     # print(html_str)
     return html_str
@@ -481,8 +544,8 @@ select distinct ?x ?y where {
 
 
 def set_term_dir(directory):
-# Sets directory for terminology --> to get rid of
     """Summary
+# Sets directory for terminology --> to get rid of
 
     Args:
         directory (TYPE): Description
@@ -499,6 +562,7 @@ def main():
         print_usage()
 
     specloc = sys.argv[1]
+    global spec_pre
     spec_pre = sys.argv[2]
     specdoc = spec_pre + "-docs"
     temploc = sys.argv[3]
