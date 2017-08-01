@@ -1,0 +1,5 @@
+Current Limitations of Document Generator
+
+{} cannot be used except in the context of a replacement string by data
+
+

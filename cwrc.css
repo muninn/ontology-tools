@@ -67,7 +67,7 @@ div.rdf-classlist h3 {
         padding: 5px;
 }
 
-specterm.h3 {
+h3.specterm {
 /*      foreground-color: #000; */
         background-color: #bbf;
         font-size: 100%;
@@ -75,6 +75,18 @@ specterm.h3 {
         padding: 3px;
 }
 
+.specterm dl>dd:first-child {
+    margin-left: 0;
+}
+.specterm dd {
+    display: inline-block;
+    margin-right: 0;
+    padding-left: 0;
+    margin-left: 0.5em;
+}
+.specterm dd::after { 
+    content: ", ";
+}
 
 .azlist { 
 	padding: 5px; 
@@ -94,7 +106,7 @@ div.az_list {
     background-color: #ddd;
 }
 
-.uri {
+.uri, .specterm dd a {
     font-family:monospace; 
     font-size:1em;
 }
@@ -102,6 +114,7 @@ div.az_list {
 #top {
     float: right; 
     font-size: small;
+    margin-top: 0px;
 }
 
 span.list-item {
@@ -111,4 +124,8 @@ span.list-item {
 
 span.list-item:first-child {
     margin-left: 5px; 
+}
+
+.table-contents ul {
+    list-style: none;
 }
