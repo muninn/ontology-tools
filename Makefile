@@ -86,15 +86,17 @@ doc: docgen.py
 
 
 doctest: docgen.py
-	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY) $(ONTOLOGY)-template2-$(ONTOLOGY_DATE).html  $(ONTOLOGY)-$(ONTOLOGY_DATE).html  en > cwrc_test.html
+	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY) $(ONTOLOGY)-template-fr.html  $(ONTOLOGY)-FR-$(ONTOLOGY_DATE).html fr > cwrc_test_fr.html
+	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY) $(ONTOLOGY)-template2-$(ONTOLOGY_DATE).html  $(ONTOLOGY)-$(ONTOLOGY_DATE).html  en > cwrc_test_en.html
 
 genretest: docgen.py
-	./docgen.py genre.owl genre genre-template-en.html  genre-en-$(ONTOLOGY_DATE).html  en > genre_test.html
+	./docgen.py genre.owl genre genre-template-fr.html  genre-fr-$(ONTOLOGY_DATE).html  fr > genre_test_fr.html
+	./docgen.py genre.owl genre genre-template-en.html  genre-en-$(ONTOLOGY_DATE).html  en > genre_test_en.html
 genre: docgen.py
 	./docgen.py genre.owl genre genre-template-en.html  genre-en-$(ONTOLOGY_DATE).html  en
 
 docgentest:
-	./docgen.py genre.owl genre genre-template-en.html  genre-en-$(ONTOLOGY_DATE).html  en > genre_test_en.html
 	./docgen.py genre.owl genre genre-template-fr.html  genre-fr-$(ONTOLOGY_DATE).html  fr > genre_test_fr.html
-	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY) $(ONTOLOGY)-template2-$(ONTOLOGY_DATE).html  $(ONTOLOGY)-$(ONTOLOGY_DATE).html  en > cwrc_test_en.html
+	./docgen.py genre.owl genre genre-template-en.html  genre-en-$(ONTOLOGY_DATE).html  en > genre_test_en.html
 	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY) $(ONTOLOGY)-template-fr.html  $(ONTOLOGY)-FR-$(ONTOLOGY_DATE).html fr > cwrc_test_fr.html
+	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY) $(ONTOLOGY)-template2-$(ONTOLOGY_DATE).html  $(ONTOLOGY)-$(ONTOLOGY_DATE).html  en > cwrc_test_en.html

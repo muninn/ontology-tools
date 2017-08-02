@@ -129,3 +129,10 @@ span.list-item:first-child {
 .table-contents ul {
     list-style: none;
 }
+.az_list.deprecated_list {
+    background-color: #eecccc;
+}
+
+.deprecated_term .specterm {
+    background-color: #f8e9e9;
+}

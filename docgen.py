@@ -281,6 +281,10 @@ def specgen(specloc, template, language):
 def create_term_html(graph, list, list_type):
     # html_str = "<h3>%s</h3>" % List_type
     html_str = ""
+    log.msg("domain")
+    log.msg(domain_dict)
+    log.msg("range")
+    log.msg(range_dict)
     for x in list:
         uri = get_full_uri(x)
         term_dict = {
@@ -290,15 +294,30 @@ def create_term_html(graph, list, list_type):
             "comment": get_comment_dict(graph, uri),
             "derived": get_prov_derivedFrom(graph, uri),
         }
+        log.msg(uri)
         if list_type == "Instance":
+            log.msg("rdf-type")
             term_dict["rdf-type"] = get_rdf_type(graph, uri)
+            log.msg(term_dict["rdf-type"])
         elif list_type == "Class":
-            term_dict["same-as"] = get_owl_sameas(graph, uri)
-            term_dict["subclass"] = get_rdfs_subclass(graph, uri)
+            if get_owl_sameas(graph, uri):
+                term_dict["same-as"] = get_owl_sameas(graph, uri)
+            if get_rdfs_subclass(graph, uri):
+                term_dict["subclass"] = get_rdfs_subclass(graph, uri)
+            if uri in domain_dict:
+                log.msg(domain_dict[uri])
+                term_dict["in-domain"] = domain_dict[uri]
+            if uri in range_dict:
+                log.msg(range_dict[uri])
+                term_dict["in-range"] = range_dict[uri]
+
         elif list_type == "Property":
-            term_dict["range"] = get_rdfs_range(graph, uri)
-            term_dict["domain"] = get_rdfs_domain(graph, uri)
-            term_dict["subproperty"] = get_rdfs_subproperty(graph, uri)
+            if get_rdfs_range(graph, uri):
+                term_dict["range"] = get_rdfs_range(graph, uri)
+            if get_rdfs_domain(graph, uri):
+                term_dict["domain"] = get_rdfs_domain(graph, uri)
+            if get_rdfs_subproperty(graph, uri):
+                term_dict["subproperty"] = get_rdfs_subproperty(graph, uri)
         log.separ()
         # exit()
         html_str += get_term_html(term_dict, list_type)
@@ -327,6 +346,11 @@ def get_prefix_ns_with_link(uri):
     if "#" in uri:
         uri_list.append(uri.split("#")[0] + "#")
         uri_list.append(uri.split("#")[1])
+        log.msg("*prefix*")
+        log.separ("&")
+        log.msg(uri_list[0])
+        log.msg(uri_list[1])
+        log.separ("&")
     else:
         temp = uri.split("/")
         ident = temp[-1]
@@ -400,6 +424,8 @@ def get_prov_derivedFrom(graph, uri):
     for uri in uris:
         ns_dict.update(get_prefix_ns_with_link(uri))
 
+    log.msg("prov-derivedfrom")
+    log.msg(ns_dict)
     return ns_dict
 
 
@@ -413,10 +439,11 @@ def get_rdf_type(graph, uri):
 
 def get_definition_dict(graph, uri):
     defn = [o for s, p, o in graph.triples(((uri, SKOS.definition, None)))]
-    # defnition =
+    defn_list = []
     for x in defn:
         if x.language == lang:
-            return x
+            defn_list.append(str(x))
+    return defn_list
 
 
 def create_dictionary_html(graph, dictionary):
@@ -427,19 +454,33 @@ def create_dictionary_html(graph, dictionary):
         label = get_label_dict(graph, uri)
         comment = get_comment_dict(graph, uri)
 
-        # print("Term: %s\n" % term)
         html_str += '<div class="specterm" id="%s">\n' % term
         html_str += '<p id="top">[<a href="#definition_list">back to top</a>]</p>'
         html_str += '<h3>Dictionary: %s:%s</h3>\n' % (spec_pre, term)
         html_str += """<p class="uri">URI: <a href="#%s">%s</a></p>\n""" % (term, uri)
-        html_str += """<p><em>%s</em>- %s</p>""" % (label, get_definition_dict(graph, uri))
+        html_str += """<p><em>%s</em></p>""" % (label)
+        html_str += """<div class="defn">%s</div>""" % (get_defn_html(get_definition_dict(graph, uri)))
         html_str += """<div class = "conceptlist">"""
         instance_list = [str(s).split("#")[1] for s, p, o in graph.triples((None, SKOS.inScheme, uri))]
         html_str += create_link_lists(instance_list, "Concepts:")
         html_str += "</div>\n"
+
         if comment:
             html_str += "<p>Comment: %s</p>" % comment
         html_str += "</div>\n"
+    return html_str
+
+
+def get_defn_html(defn_list):
+    counter = 1
+    html_str = ""
+    for x in defn_list:
+        if x:
+            if len(defn_list) != 1:
+                html_str += "<p><em>%d</em>- %s</p>\n" % (counter, x)
+            else:
+                html_str += "<p>%s</p>\n" % (x)
+        counter += 1
     return html_str
 
 
@@ -448,7 +489,8 @@ def get_term_html(term_dict, term_type):
     uri = str(term_dict["uri"])
     term = uri.split("#")[1]
     comment = term_dict["comment"]
-    defn = str(term_dict["defn"])
+    defn = term_dict["defn"]
+
     derived = term_dict["derived"]
 
     html_str = ""
@@ -456,14 +498,15 @@ def get_term_html(term_dict, term_type):
     html_str += '<p id="top">[<a href="#definition_list">back to top</a>]</p>'
     html_str += '<h3>%s: %s:%s</h3>\n' % (term_type, spec_pre, term)
     html_str += """<p class="uri">URI: <a href="#%s">%s</a></p>\n""" % (term, uri)
-    html_str += """<p><em>%s</em>- %s</p>""" % (label, defn)
+    html_str += """<p><em>%s</em></p>""" % (label)
+    html_str += """<div class="defn">%s</div>""" % (get_defn_html(defn))
     if comment:
         html_str += "<p>Comment: %s</p>\n" % comment
     if derived:
         html_str += "<dl>\n"
         html_str += "<dt>PROV Derived From:</dt>\n"
         for link in derived:
-            html_str += "<dd><a href=\"%s\">%s</a></dd>" % (link, link)
+            html_str += "<dd><a href=\"%s\">%s</a></dd>" % (derived[link], link)
         html_str += "</dl>\n"
     if "rdf-type" in term_dict:
         html_str += "<dl>\n"
@@ -482,11 +525,26 @@ def get_term_html(term_dict, term_type):
         html_str += "</dl>\n"
     if "subclass" in term_dict:
         html_str += "<dl>\n"
-        html_str += "<dt>subclass:</dt>\n"
+        html_str += "<dt>sub-class-of:</dt>\n"
         for x in term_dict["subclass"]:
             html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["subclass"][
                 x], str(x))
         html_str += "</dl>\n"
+    if "in-domain" in term_dict:
+        html_str += "<dl>\n"
+        html_str += "<dt>in-domain-of:</dt>\n"
+        for x in term_dict["in-domain"]:
+            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["in-domain"][
+                x], str(x))
+        html_str += "</dl>\n"
+    if "in-range" in term_dict:
+        html_str += "<dl>\n"
+        html_str += "<dt>in-range-of:</dt>\n"
+        for x in term_dict["in-range"]:
+            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["in-range"][
+                x], str(x))
+        html_str += "</dl>\n"
+
     if "range" in term_dict:
         html_str += "<dl>\n"
         html_str += "<dt>range:</dt>\n"
@@ -559,9 +617,10 @@ select * where {
     terms = [str(s).split("#")[1] for s in deprecated_uris]
     # print("Deprecated terms\n\n")
 
-    html_str = '<h3 id="deprecated_list" >Global Cross Reference of Deprecated Terms</h3><div class="az_list">'
+    html_str = '<h3 id="deprecated_list" >Global Cross Reference of Deprecated Terms</h3><div class="az_list deprecated_list">'
     html_str += create_link_lists(terms, "Deprecated&nbsp;Terms:")
     html_str += '</div><h3>Detailed references for all terms, classes and properties</h3>'
+    html_str += "<div class=\"deprecated_term\">"
     for uri in deprecated_uris:
 
         query_str = """
@@ -575,8 +634,6 @@ select * where {
             )
         }   
             """ % (uri, uri, uri, uri, lang, lang)
-
-        # print("here")
 
         label = ""
         comment = ""
@@ -605,7 +662,7 @@ select * where {
         html_str += get_dep_term_html(term_dict)
         log.separ()
         # print(get_dep_term_html(term_dict))
-
+    html_str += "</div>"
     # print(html_str)
     return html_str
 
