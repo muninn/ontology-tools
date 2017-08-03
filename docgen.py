@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import sys
 # temp log library for debugging
-from log import *
+# from log import *
 import rdflib
 
 classranges = {}
@@ -41,9 +41,8 @@ OWL = rdflib.Namespace(ns_list["owl"])
 VS = rdflib.Namespace(ns_list["vs"])
 PROV = rdflib.Namespace(ns_list["prov"])
 
-log = Log("log/docgen")
-log.test_name("Debugging Document Generator")
-
+# log = Log("log/docgen")
+# log.test_name("Debugging Document Generator")
 
 def print_usage():
     script = sys.argv[0]
