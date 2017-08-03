@@ -136,3 +136,7 @@ span.list-item:first-child {
 .deprecated_term .specterm {
     background-color: #f8e9e9;
 }
+div.comment p {
+    padding-bottom: 0;
+    margin: 0;
+}
