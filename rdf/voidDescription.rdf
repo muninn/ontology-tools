@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<rdf:RDF xml:base="http://localhost/#" 
+  xmlns="http://localhost/#" 
+  xmlns:as="http://www.w3.org/ns/activitystreams#" 
+  xmlns:bio="http://purl.org/vocab/bio/0.1/" 
+  xmlns:cc="http://creativecommons.org/ns#" 
+  xmlns:cwrc="http://localhost/#" 
+  xmlns:dbpedia="http://dbpedia.org/resource/" 
+  xmlns:dcterms="http://purl.org/dc/terms/" 
+  xmlns:doap="http://usefulinc.com/ns/doap#" 
+  xmlns:bibo="http://purl.org/ontology/bibo/"
+  xmlns:foaf="http://xmlns.com/foaf/0.1/" 
+  xmlns:loc="http://id.loc.gov/vocabulary/relators/" 
+  xmlns:locl ="http://id.loc.gov/vocabulary/languages/"
+  xmlns:nif="http://persistence.uni-leipzig.org/nlp2rdf/ontologies/nif-core#" 
+  xmlns:oa="http://www.w3.org/ns/oa#" 
+  xmlns:owl="http://www.w3.org/2002/07/owl#" 
+  xmlns:prov="http://www.w3.org/ns/prov#" 
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" 
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" 
+  xmlns:rel="http://purl.org/vocab/relationship/" 
+  xmlns:skos="http://www.w3.org/2004/02/skos/core#" 
+  xmlns:skosxl="http://www.w3.org/2008/05/skos-xl#" 
+  xmlns:time="http://www.w3.org/2006/time#" 
+  xmlns:vann="http://purl.org/vocab/vann/" 
+  xmlns:voaf="http://purl.org/vocommons/voaf#" 
+  xmlns:void="http://rdfs.org/ns/void#" 
+  xmlns:vs="http://www.w3.org/2003/06/sw-vocab-status/ns#" 
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema#">
+
+<prov:Activity rdf:about="#specgenMarkII">
+ <rdf:type rdf:resource="http://usefulinc.com/ns/doap#Project"/>
+ <rdfs:label>specgen Mark II</rdfs:label> 
+ <doap:name>specgen Mark II</doap:name> 
+ <doap:homepage rdf:resource="https://github.com/muninn/specgenMarkII"/>
+ <doap:category rdf:resource="http://id.loc.gov/authorities/subjects/sh90003145"/>
+ <doap:license rdf:resource="http://creativecommons.org/licenses/by-nc/4.0/"/>
+ <doap:language rdf:resource="http://id.loc.gov/vocabulary/languages/eng"/>
+ <doap:language rdf:resource="http://id.loc.gov/vocabulary/languages/fre"/>
+ <doap:programming-language rdf:resource="https://en.wikipedia.org/wiki/Python_(programming_language)"/> 
+ <doap:developer rdf:resource="http://sparql.cwrc.ca/ontologies/cwrc#AlliyyaMo"/>
+ <doap:developer rdf:resource="http://sparql.cwrc.ca/ontologies/cwrc#RobWarren"/>
+ <doap:shortdesc xml:lang="en">Generates language specific html documentation for RDF/OWL/SKOS files.</doap:shortdesc>
+ <doap:shortdesc xml:lang="fr">Génère un document html basé sur un document OWL/RDF/SKOS</doap:shortdesc>
+ <doap:shortdesc xml:lang="de">Erzeugt ein HTML-Dokument basiert auf einem Dokument OWL / RDF / SKOS</doap:shortdesc>
+ <doap:repository>
+  <doap:GitRepository rdf:about="#specgenMarkII-github">
+   <doap:location rdf:resource="https://github.com/muninn/specgenMarkII"/>
+   <doap:browse rdf:resource="https://github.com/muninn/specgenMarkII"/>
+  </doap:GitRepository>
+ </doap:repository>
+</prov:Activity>
+
+</rdf:RDF>
