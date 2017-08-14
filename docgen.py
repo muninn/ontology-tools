@@ -4,8 +4,7 @@ import sys
 # from log import *
 import rdflib
 import time
-classranges = {}
-classdomains = {}
+
 spec_url = None
 spec_ns = None
 spec_pre = None
@@ -43,7 +42,6 @@ PROV = rdflib.Namespace(ns_list["prov"])
 
 # log = Log("log/docgen")
 # log.test_name("Debugging Document Generator")
-
 
 def print_usage():
     script = sys.argv[0]
@@ -168,9 +166,11 @@ def specgen(specloc, template, language):
         "Dictionaries:": skos_concepts,
     }
     temp_list = ["Dictionaries:", "Classes:", "Properties:", "Instances:"]
+
     # create global cross reference
     azlist_html = get_azlist_html(az_dict, temp_list)
 
+    # Creating rest of html
     dict_html = create_dictionary_html(graph, skos_concepts)
     classes_html = "<h3 id='classes'>Classes</h3>" + create_term_html(graph, class_list, "Class")
     prop_html = "<h3 id='properties'>Properties</h3>" + create_term_html(graph, prop_list, "Property")
@@ -181,8 +181,6 @@ def specgen(specloc, template, language):
 
     template = template.format(_authors_=get_authors(graph), _azlist_=azlist_html,
                                _terms_=terms_html, _deprecated_=deprecated_html)
-    # print(template)
-
     return template
 
 
@@ -195,16 +193,16 @@ def create_term_html(graph, list, list_type):
             "label": get_label_dict(graph, uri),
             "defn": get_definition_list(graph, uri),
             "comment": get_comment_list(graph, uri),
-            "derived": get_prov_derivedFrom(graph, uri),
+            "derived": get_ns_obj(graph, uri, PROV.derivedFrom)
         }
 
         if list_type == "Instance":
-            term_dict["rdf-type"] = get_rdf_type(graph, uri)
+            term_dict["rdf-type"] = get_ns_obj(graph, uri, RDF.type)
         elif list_type == "Class":
-            if get_owl_sameas(graph, uri):
-                term_dict["same-as"] = get_owl_sameas(graph, uri)
-            if get_rdfs_subclass(graph, uri):
-                term_dict["subclass"] = get_rdfs_subclass(graph, uri)
+            if get_ns_obj(graph, uri, OWL.sameAs):
+                term_dict["same-as"] = get_ns_obj(graph, uri, OWL.sameAs)
+            if get_ns_obj(graph, uri, RDFS.subClassOf):
+                term_dict["subclass"] = get_ns_obj(graph, uri, RDFS.subClassOf)
             if str(uri) in domain_dict:
                 temp = domain_dict[str(uri)]
                 temp_dict = {}
@@ -219,12 +217,13 @@ def create_term_html(graph, list, list_type):
                 term_dict["in-range"] = temp_dict
 
         elif list_type == "Property":
-            if get_rdfs_range(graph, uri):
-                term_dict["range"] = get_rdfs_range(graph, uri)
-            if get_rdfs_domain(graph, uri):
-                term_dict["domain"] = get_rdfs_domain(graph, uri)
-            if get_rdfs_subproperty(graph, uri):
-                term_dict["subproperty"] = get_rdfs_subproperty(graph, uri)
+            if get_ns_obj(graph, uri, RDFS.range):
+                term_dict["range"] = get_ns_obj(graph, uri, RDFS.range)
+            if get_ns_obj(graph, uri, RDFS.domain):
+                term_dict["domain"] = get_ns_obj(graph, uri, RDFS.domain)
+            if get_ns_obj(graph, uri, RDFS.subPropertyOf):
+                term_dict["subproperty"] = get_ns_obj(graph, uri, RDFS.subPropertyOf)
+        
         html_str += get_term_html(term_dict, list_type)
     return html_str
 
@@ -275,65 +274,12 @@ def get_prefix_ns_with_link(uri):
     return uri_dict
 
 
-def get_owl_sameas(graph, uri):
-    uris = [str(o) for s, p, o in graph.triples(((uri, OWL.sameAs, None)))]
+def get_ns_obj(graph, uri, ns_uri):
+    uris = [str(o) for s, p, o in graph.triples(((uri, ns_uri, None)))]
     ns_dict = {}
     for uri in uris:
         ns_dict.update(get_prefix_ns_with_link(uri))
     return ns_dict
-
-
-def get_rdfs_subclass(graph, uri):
-    uris = [str(o) for s, p, o in graph.triples(((uri, RDFS.subClassOf, None)))]
-    ns_dict = {}
-    for uri in uris:
-        ns_dict.update(get_prefix_ns_with_link(uri))
-
-    return ns_dict
-
-
-def get_rdfs_subproperty(graph, uri):
-    uris = [str(o) for s, p, o in graph.triples(((uri, RDFS.subPropertyOf, None)))]
-    ns_dict = {}
-    for uri in uris:
-        ns_dict.update(get_prefix_ns_with_link(uri))
-
-    return ns_dict
-
-
-def get_rdfs_range(graph, uri):
-    uris = [str(o) for s, p, o in graph.triples(((uri, RDFS.range, None)))]
-    ns_dict = {}
-    for uri in uris:
-        ns_dict.update(get_prefix_ns_with_link(uri))
-
-    return ns_dict
-
-
-def get_rdfs_domain(graph, uri):
-    uris = [str(o) for s, p, o in graph.triples(((uri, RDFS.domain, None)))]
-    ns_dict = {}
-    for uri in uris:
-        ns_dict.update(get_prefix_ns_with_link(uri))
-
-    return ns_dict
-
-
-def get_prov_derivedFrom(graph, uri):
-    uris = [str(o) for s, p, o in graph.triples(((uri, PROV.derivedFrom, None)))]
-    ns_dict = {}
-    for uri in uris:
-        ns_dict.update(get_prefix_ns_with_link(uri))
-
-    return ns_dict
-
-
-def get_rdf_type(graph, uri):
-    rdf_uris = [str(o) for s, p, o in graph.triples(((uri, RDF.type, None)))]
-    rdf_dict = {}
-    for uri in rdf_uris:
-        rdf_dict.update(get_prefix_ns_with_link(uri))
-    return (rdf_dict)
 
 
 def get_definition_list(graph, uri):
@@ -392,6 +338,16 @@ def get_defn_html(defn_list):
         counter += 1
     return html_str
 
+def get_dl_html(prefix_str,term_dict,prefix):
+    html_str = ""
+    if prefix in term_dict:
+        html_str += "<dl>\n"
+        html_str += "<dt>%s:</dt>\n" % prefix_str
+        for x in term_dict[prefix]:
+            html_str += '<dd><a href="%s" style="font-family: monospace;">%s</a></dd>' % (term_dict[prefix][
+                x], str(x))
+        html_str += "</dl>\n"
+    return html_str
 
 def get_term_html(term_dict, term_type):
     label = str(term_dict["label"])
@@ -399,7 +355,6 @@ def get_term_html(term_dict, term_type):
     term = uri.split("#")[1]
     comment = term_dict["comment"]
     defn = term_dict["defn"]
-
     derived = term_dict["derived"]
 
     html_str = ""
@@ -411,71 +366,22 @@ def get_term_html(term_dict, term_type):
     html_str += """<div class="defn">%s</div>""" % (get_defn_html(defn))
     if comment:
         html_str += get_comment_html(comment)
-    if derived:
-        html_str += "<dl>\n"
-        html_str += "<dt>PROV Derived From:</dt>\n"
-        for link in derived:
-            html_str += "<dd><a href=\"%s\">%s</a></dd>" % (derived[link], link)
-        html_str += "</dl>\n"
-    if "rdf-type" in term_dict:
-        html_str += "<dl>\n"
-        html_str += "<dt>RDF Type:</dt>\n"
-        for x in term_dict["rdf-type"]:
-            html_str += '<dd><a href="%s" style="font-family: monospace;">%s</a></dd>' % (term_dict["rdf-type"][
-                x], str(x))
-        html_str += "</dl>\n"
 
-    if "same-as" in term_dict:
-        html_str += "<dl>\n"
-        html_str += "<dt>same-as:</dt>\n"
-        for x in term_dict["same-as"]:
-            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["same-as"][
-                x], str(x))
-        html_str += "</dl>\n"
-    if "subclass" in term_dict:
-        html_str += "<dl>\n"
-        html_str += "<dt>sub-class-of:</dt>\n"
-        for x in term_dict["subclass"]:
-            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["subclass"][
-                x], str(x))
-        html_str += "</dl>\n"
-    if "in-domain" in term_dict:
-        html_str += "<dl>\n"
-        html_str += "<dt>in-domain-of:</dt>\n"
-        for x in term_dict["in-domain"]:
-            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["in-domain"][
-                                                                                         x], str(x))
-        html_str += "</dl>\n"
-    if "in-range" in term_dict:
-        html_str += "<dl>\n"
-        html_str += "<dt>in-range-of:</dt>\n"
-        for x in term_dict["in-range"]:
-            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["in-range"][
-                                                                                         x], str(x))
-        html_str += "</dl>\n"
+    prefix_list = ["derived","rdf-type", "same-as", "subclass" , "in-domain", "in-range", "range" , "domain" , "subproperty"]
+    prefix_dict = {
+        "derived": "PROV Derived From",
+        "rdf-type": "RDF Type",
+        "same-as" : "Same As",
+        "subclass" : "Sub Class Of",
+        "in-domain" : "In Domain Of:",
+        "in-range" : "In Range Of:",
+        "range" : "Range",
+        "domain" : "Domain",
+        "subproperty" : "Subproperty",
+    }
 
-    if "range" in term_dict:
-        html_str += "<dl>\n"
-        html_str += "<dt>range:</dt>\n"
-        for x in term_dict["range"]:
-            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["range"][
-                x], str(x))
-        html_str += "</dl>\n"
-    if "domain" in term_dict:
-        html_str += "<dl>\n"
-        html_str += "<dt>domain:</dt>\n"
-        for x in term_dict["domain"]:
-            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["domain"][
-                x], str(x))
-        html_str += "</dl>\n"
-    if "subproperty" in term_dict:
-        html_str += "<dl>\n"
-        html_str += "<dt>subproperty:</dt>\n"
-        for x in term_dict["subproperty"]:
-            html_str += '<dd><a href="%s" style="font-family:monospace;">%s</a></dd>' % (term_dict["subproperty"][
-                x], str(x))
-        html_str += "</dl>\n"
-
+    for prefix in prefix_list:
+        html_str += get_dl_html(prefix_dict[prefix],term_dict,prefix)
     html_str += "\n</div>\n"
 
     return html_str
@@ -623,11 +529,6 @@ select distinct ?x ?y where {
     return html_str
 
 
-def set_term_dir(directory):
-    global termdir
-    termdir = directory
-
-
 def save(template, dest, stdout=False):
     if stdout:
         print(template)
@@ -639,19 +540,18 @@ def save(template, dest, stdout=False):
 
 def main():
     global lang
+    global spec_pre
+
     if (len(sys.argv) != 6):
         print_usage()
 
     specloc = sys.argv[1]
-    global spec_pre
+    # get rid of get --> <vann:preferredNamespacePrefix>cwrc</vann:preferredNamespacePrefix>
     spec_pre = sys.argv[2]
-    specdoc = spec_pre + "-docs"
     temploc = sys.argv[3]
     dest = sys.argv[4]
     lang = sys.argv[5]
     template = None
-
-    set_term_dir(specdoc)
 
     try:
         f = open(temploc, "r")
