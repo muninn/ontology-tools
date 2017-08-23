@@ -85,7 +85,10 @@ clean-all:
 
 # Docgen usage:
 doc: scripts/docgen.py
-	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY) $(ONTOLOGY)-template-FR.html  $(ONTOLOGY)-FR-$(ONTOLOGY_DATE).html fr
-	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY) $(ONTOLOGY)-template2-$(ONTOLOGY_DATE).html  $(ONTOLOGY)-$(ONTOLOGY_DATE)-EN.html  en
-	./docgen.py genre.owl genre genre-template-FR.html  genre-FR-$(ONTOLOGY_DATE).html  fr
-	./docgen.py genre.owl genre genre-template-EN.html  genre-EN-$(ONTOLOGY_DATE).html  en
+	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY)-template2-$(ONTOLOGY_DATE).html  TEST-$(ONTOLOGY)-$(ONTOLOGY_DATE)-EN.html  en
+
+doc-all: scripts/docgen.py
+	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY)-template-FR.html  $(ONTOLOGY)-FR-$(ONTOLOGY_DATE).html fr
+	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY)-template2-$(ONTOLOGY_DATE).html  $(ONTOLOGY)-$(ONTOLOGY_DATE)-EN.html  en
+	./docgen.py genre.owl genre-template-FR.html  genre-FR-$(ONTOLOGY_DATE).html  fr
+	./docgen.py genre.owl genre-template-EN.html  genre-EN-$(ONTOLOGY_DATE).html  en
