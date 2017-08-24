@@ -1,36 +1,40 @@
 #!/usr/bin/env perl
 #Usage:
-# ./createTaxonomy ontology.owl Class
+# ./createTaxonomy ontology.owl Class lang
 # Class that you're interested in building a taxonomy for ex.
-# ./createTaxonomy cwrc.owl Religion
-# ./createTaxonomy cwrc.owl PoliticalAffiliation
+# ./createTaxonomy cwrc.owl Religion en
+# ./createTaxonomy cwrc.owl PoliticalAffiliation en
 use strict;
 use RDF::Trine;
 use RDF::Query;
 use XML::LibXML;
 use Digest::MD5 qw(md5 md5_hex);
+use utf8;
+binmode(STDOUT,":utf8"); 
 
 my $xml_parser = XML::LibXML->new();
 $xml_parser->clean_namespaces(1);
 my $store = RDF::Trine::Store::Memory->new();
 my $model = RDF::Trine::Model->new($store);
 # parse some web data into the model, and print the count of resulting RDF statements
-if (scalar(@ARGV) != 2) {
-    print "Insufficent Argument Provided\n";
+if (scalar(@ARGV) != 3) {
+    print "Insufficent Arguments Provided\n";
     print "Expected Usage:\n";
-    print "\t./createTaxonomy ontology.owl Class\n";
+    print "\t./createTaxonomy ontology.owl Class lang\n";
+    print "\t./createTaxonomy cwrc.owl Religion en\n";
     print "Will output a diagraph with instance nodes of that class linking to their uri's\n";
     exit(0);
 }
 my $raw_file = 'file:'. $ARGV[0];
 my $taxonomy = $ARGV[1];
+my $lang = $ARGV[2];
 
 
 RDF::Trine::Parser->parse_url_into_model( $raw_file, $model );
 my @allmaps ;
 my $query = RDF::Query->new('SELECT * WHERE { ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://sparql.cwrc.ca/ontologies/cwrc#'.$taxonomy.'> .
 ?uri <http://www.w3.org/2000/01/rdf-schema#label> ?label .
-FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "en"))
+FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "'.$lang.'"))
 }');
 my $iterator = $query->execute( $model );
 print "digraph ".$taxonomy."Graph {\n
