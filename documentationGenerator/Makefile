@@ -86,6 +86,7 @@ clean-all:
 # Docgen usage:
 doc: scripts/docgen.py
 	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY)-template2-$(ONTOLOGY_DATE).html  TEST-$(ONTOLOGY)-$(ONTOLOGY_DATE)-EN.html  en
+	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY)-template-FR.html  $(ONTOLOGY)-FR-$(ONTOLOGY_DATE).html fr
 
 doc-all: scripts/docgen.py
 	./docgen.py $(ONTOLOGY)-$(ONTOLOGY_DATE).owl $(ONTOLOGY)-template-FR.html  $(ONTOLOGY)-FR-$(ONTOLOGY_DATE).html fr
