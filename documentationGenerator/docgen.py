@@ -1,9 +1,13 @@
 #!/usr/bin/python3
 import sys
-# temp log library for debugging
-# from log import *
 import rdflib
 import time
+import urllib.request
+
+# temp log library for debugging
+# from log import *
+# log = Log("log/docgen")
+# log.test_name("Debugging Document Generator")
 
 spec_url = None
 spec_ns = None
@@ -48,8 +52,21 @@ PROV = rdflib.Namespace(ns_list["prov"])
 CWRC = rdflib.Namespace(ns_list["cwrc"])
 DCTERMS = rdflib.Namespace(ns_list["dcterms"])
 
-# log = Log("log/docgen")
-# log.test_name("Debugging Document Generator")
+trans_dict = {
+    "specification": ["Specification", "Spécifications"],
+    "draft": ["Working Draft", "Brouillon de travail"],
+    "previous_ver": ["Previous Version", "Ancienne version"],
+    "current_ver": ["This Version", "Version courante"],
+    "latest_ver": ["Latest Version", "Version à jour"],
+    "last_ver": ["Last update", "Dernière version"],
+    "authors": ["Authors", "Auteurs"],
+    "contrib": ["Contributors", "Contributeurs"],
+    "subjects": ["Subject Headings", "Sujects"],
+    "listterm": ["Detailed references for all terms, classes and properties", "Références détaillées pour tous les termes, classes et propriétés"],
+    "classes": ["Classes", "Classes"],
+    "props": ["Properties", "Propriétés"],
+    "dicts": ["Dictionaries", "Dictionnaires"]
+}
 
 
 def print_usage():
@@ -111,7 +128,8 @@ def get_instances(class_list):
 def create_link_lists(list, name):
     string = "<p>%s" % name
     for x in list:
-        string += '<span class="list-item"><a href="#%s">%s</a>,</span>' % (x, x)
+        title = str(get_label_dict(get_full_uri(x)))
+        string += '<span class="list-item"><a href="#%s" title="%s">%s</a>,</span>' % (x, title, x)
     string += "</p>"
     ' '.join(string.split())
     return(string)
@@ -170,13 +188,15 @@ def specgen(template, language):
     instance_list = get_instances(class_list)
 
     # Build HTML list of terms.
+    dict_str = trans_dict["dicts"][l_index] + ":"
+    props_str = trans_dict["props"][l_index] + ":"
     az_dict = {
         "Classes:": class_list,
-        "Properties:": prop_list,
+        props_str: prop_list,
         "Instances:": instance_list,
-        "Dictionaries:": skos_concepts,
+        dict_str: skos_concepts,
     }
-    temp_list = ["Dictionaries:", "Classes:", "Properties:", "Instances:"]
+    temp_list = [dict_str, "Classes:", props_str, "Instances:"]
 
     # create global cross reference
     azlist_html = get_azlist_html(az_dict, temp_list)
@@ -184,13 +204,13 @@ def specgen(template, language):
     # Creating rest of html
     dict_html = create_dictionary_html(skos_concepts)
     classes_html = "<h3 id='classes'>Classes</h3>" + create_term_html(class_list, "Class")
-    prop_html = "<h3 id='properties'>Properties</h3>" + create_term_html(prop_list, "Property")
+    prop_html = "<h3 id='properties'>%s</h3>" % props_str[:-1] + create_term_html(prop_list, "Property")
     instance_html = "<h3 id='instances'>Instances</h3>" + create_term_html(instance_list, "Instance")
     deprecated_html = create_deprecated_html(o_graph)
 
     terms_html = dict_html + classes_html + prop_html + instance_html
 
-    template = template.format(_authors_=get_authors(o_graph), _azlist_=azlist_html,
+    template = template.format(_header_=get_header_html(), _azlist_=azlist_html,
                                _terms_=terms_html, _deprecated_=deprecated_html)
     return template
 
@@ -306,23 +326,12 @@ def get_definition_list(uri):
     for x in defn:
         if x.language == lang:
             tempstr = str(x)
-            # if "@@" in tempstr:
-            #     temp = tempstr.split("@@")
-            #     test = temp[1::2]
-            #     for link in test:
-            #         oldstr = "@@" + link + "@@"
-            #         if link[0] == "#":
-            #             label = get_label_dict(spec_url + link[1:])
-            #             link_tag = '<a href="%s">%s</a>' % (link, label)
-            #         else:
-            #             link_tag = '<a href="%s">%s</a>' % (link, link)
-            #         tempstr = tempstr.replace(oldstr, link_tag)
             defn_list.append(tempstr)
     return defn_list
 
 
 def create_dictionary_html(dictionary):
-    html_str = "<h3 id= 'dictionaries'>Dictionaries</h3>"
+    html_str = "<h3 id= 'dictionaries'>%s</h3>" % trans_dict["dicts"][l_index]
 
     for term in dictionary:
         uri = spec_url + term
@@ -525,27 +534,43 @@ def create_deprecated_html(o_graph):
     return get_deprecated_terms(o_graph)
 
 
-def get_contributors(o_graph):
+def get_contributors():
     query_str = """
-select distinct ?x ?y where {
-    ?person dcterms:creator ?name .
-        ?name foaf:name ?x .
-    OPTIONAL { ?name owl:sameAs ?y }.
-}
-    """,
-    # print(query_str)
+        select distinct ?x ?y where {
+            ?person loc:ctb ?name .
+                ?name foaf:name ?x .
+            OPTIONAL { ?name foaf:homepage ?y }.
+        }
+    """
+    # filter(
+    #     langMatches(lang(?name), "%s"))
+    # )
+    # % lang
     names = {}
     for row in o_graph.query(query_str):
-        names[str(row.x)] = str(row.y)
+        if row.x.language == lang or row.x.language is None:
+            names[str(row.x)] = str(row.y)
+
+    name_list = [str(x) for x in names.keys()]
+    name_list = sorted(sorted(name_list), key=lambda n: n.split()[1])
+    html_str = "<dt>%s:</dt>\n" % trans_dict["contrib"][l_index]
+    for x in name_list:
+        html_str += "<dd>\n"
+        if names[x] != 'None':
+            html_str += '<a href="%s">%s</a>' % (names[x], x)
+        else:
+            html_str += x
+        html_str += "</dd>\n"
+    return html_str
 
 
-def get_authors(o_graph):
+def get_authors_html():
     query_str = """
-select distinct ?x ?y where {
-    ?person dcterms:creator ?name .
-        ?name foaf:name ?x .
-    OPTIONAL { ?name foaf:homepage ?y }.
-}
+        select distinct ?x ?y where {
+            ?person dcterms:creator ?name .
+                ?name foaf:name ?x .
+            OPTIONAL { ?name foaf:homepage ?y }.
+        }
     """
     names = {}
     for row in o_graph.query(query_str):
@@ -554,9 +579,9 @@ select distinct ?x ?y where {
     # sort names based on last name
     name_list = [str(x) for x in names.keys()]
     name_list = sorted(sorted(name_list), key=lambda n: n.split()[1])
-    html_str = ""
+    html_str = "<dt>%s:</dt>\n" % trans_dict["authors"][l_index]
     for x in name_list:
-        html_str += "<dd>"
+        html_str += "<dd>\n"
         if names[x] != 'None':
             html_str += '<a href="%s">%s</a>' % (names[x], x)
         else:
@@ -573,93 +598,108 @@ def save(template, dest, stdout=False):
         f.write(template)
         f.close()
 
-# CWRC Ontology Specification - 0.99.5
+
+def get_webpage_title(url):
+    webpage = urllib.request.urlopen(url).read()
+    title = str(webpage).split('<title>')[1].split('</title>')[0]
+    return title
 
 
-# The CWRC Ontology is the ontology of the Canadian Writing Research Collaboratory.
+def get_header_html():
 
-# Working Draft — 18 August 2017 (Version Française)
+    header = get_header()
+    # print(header)
+    html_str = """<h1 id="title">%s %s %s</h1>\n""" % (header["title"]
+                                                       [0], trans_dict["specification"][l_index], header["version"][0])
+    if header["logo"]:
+        html_str += """<img src="%s" align="right" width="350">\n""" % header["logo"][0]
 
-# Previous version:
-# http://sparql.cwrc.ca/ontologies/cwrc-2017-08-04 (owl - rdf/xml, ttl, nt)
-# This version:
-# http://sparql.cwrc.ca/ontologies/cwrc-2017-08-18.html (owl-rdf/xml, ttl, nt)
-# Latest version:
-# http://sparql.cwrc.ca/ontologies/cwrc.html (owl-rdf/xml, ttl, nt)
-# Last Update: 0.99.5
-# Date: 18 August 2017
-# Authors:
-# Susan Brown
-# Colin Faulkner
-# Abigel Lemak
-# Kim Martin
-# Alliyya Mo
-# Jade Penancier
-# John Simpson
-# Robert Warren
-# Contributors:
-# Constance Crompton
-# Original Orlando Project Authors
-# Subject Headings:
-# Canadian literature, English literature, Bibliography, Literature--History and criticism, Humanities literature--Editing
-def header_html():
-    # <dcterms:description xml:lang="en">
-    print(rdflib.URIRef(spec_url[:-1]))
-    # desc = [str(o) for s, p, o in o_graph.triples(
-    #     ((spec_url, None, None)))]
-    # print(desc)
-    ontology_uri = rdflib.URIRef(spec_url[:-1])
-    print(type(ontology_uri))
-    print(DCTERMS.description)
+    html_str += """<h2 id="subtitle">%s</h2>\n""" % header["desc"][0]
+    html_str += """<h3 id="mymw-doctype">%s &mdash; %s""" % (trans_dict["draft"][l_index], header["date_str"])
+    url = "/".join(spec_url.split("/")[:-1]) + "/" + spec_pre + "-"
+    curr_url = url + header["date"]
+    latest_url = url[:-1]
+    version_type = "English"
+    if lang == "en":
+        url += "FR-"
+        version_type = "Française"
+    url += header["date"] + ".html"
+    html_str += """(<a href="%s">Version %s</a>)</h3>\n""" % (url, version_type)
+    html_str += "<dl>\n"
+    if header["prior"]:
+        prior = header["prior"][0]
+        html_str += """<dt>%s:</dt>\n""" % trans_dict["previous_ver"][l_index]
+        html_str += """<dd><a href="%s">%s</a>\n""" % (prior, prior)
+        html_str += """(<a href="%s.owl">owl - rdf/xml</a>, """ % (prior)
+        html_str += """<a href="%s.ttl">ttl</a>, <a href="%s.nt">nt</a>)\n""" % (prior, prior)
+        html_str += """</dd>\n"""
 
+    html_str += """<dt>%s:</dt>\n""" % (trans_dict["current_ver"][l_index])
+    html_str += """<dd><a href="%s.html">%s.html</a>\n""" % (curr_url, curr_url)
+    html_str += """(<a href="%s.owl">owl-rdf/xml</a>,\n""" % (curr_url)
+    html_str += """<a href="%s.ttl">ttl</a>,\n""" % (curr_url)
+    html_str += """<a href="%s.nt">nt</a>)\n""" % (curr_url)
+    html_str += """</dd>\n"""
+
+    html_str += """<dt>%s:</dt>\n""" % (trans_dict["latest_ver"][l_index])
+    html_str += """<dd><a href="%s.html">%s.html</a>\n""" % (latest_url, latest_url)
+    html_str += """(<a href="%s.owl">owl-rdf/xml</a>,\n""" % (latest_url)
+    html_str += """<a href="%s.ttl">ttl</a>,\n""" % (latest_url)
+    html_str += """<a href="%s.nt">nt</a>)\n""" % (latest_url)
+    html_str += """</dd>\n"""
+    html_str += """<dt>%s: %s</dt>\n""" % (trans_dict["last_ver"][l_index], header["version"][0])
+    html_str += """<dd>Date: %s</dd>\n""" % header["date_str"]
+    html_str += get_authors_html()
+    html_str += get_contributors()
+    html_str += "<dt>%s:</dt>\n" % trans_dict["subjects"][l_index]
+    for subj in header["subj"]:
+        html_str += "<dd>\n"
+        html_str += '<a href="%s">%s</a>' % (subj, get_webpage_title(subj))
+        html_str += "</dd>\n"
+
+    return(html_str)
+
+
+def get_header():
     import datetime
     header_info = {}
+    ontology_uri = rdflib.URIRef(spec_url[:-1])
     header_info["desc"] = [str(o) for s, p, o in o_graph.triples(
-        (ontology_uri, DCTERMS.description, None)) if o.language == lang][0]
+        (ontology_uri, DCTERMS.description, None)) if o.language == lang]
     header_info["title"] = [str(o) for s, p, o in o_graph.triples(
-        (ontology_uri, DCTERMS.title, None)) if o.language == lang][0]
+        (ontology_uri, DCTERMS.title, None)) if o.language == lang]
     header_info["version"] = [str(o) for s, p, o in o_graph.triples(
-        (ontology_uri, OWL.versionInfo, None))][0]
+        (ontology_uri, OWL.versionInfo, None))]
+    header_info["logo"] = [str(o) for s, p, o in o_graph.triples(
+        (ontology_uri, FOAF.logo, None))]
+    header_info["prior"] = [str(o) for s, p, o in o_graph.triples(
+        (ontology_uri, OWL.priorVersion, None))]
+    header_info["rights"] = [str(o) for s, p, o in o_graph.triples(
+        (ontology_uri, DCTERMS.rights, None))]
+    header_info["subj"] = [str(o) for s, p, o in o_graph.triples(
+        (ontology_uri, DCTERMS.subject, None))]
+
     pre_date = [str(o) for s, p, o in o_graph.triples(
         (ontology_uri, DCTERMS.date, None))][0].split("-")
-    header_info["date"] = str(datetime.date(int(pre_date[0]), int(
-        pre_date[1]), int(pre_date[2])).strftime("%d %B %Y"))
-    header_info["logo"] = [str(o) for s, p, o in o_graph.triples(
-        (ontology_uri, FOAF.logo, None))][0]
-    header_info["prior"] = [str(o) for s, p, o in o_graph.triples(
-        (ontology_uri, OWL.priorVersion, None))][0]
-    header_info["rights"] = [str(o) for s, p, o in o_graph.triples(
-        (ontology_uri, DCTERMS.rights, None))][0]
+    if len(pre_date) != 3:
+        header_info["date_str"] = str(datetime.date.today().strftime("%d %B %Y"))
+        header_info["date"] = str(datetime.date.today())
+    else:
+        header_info["date"] = "-".join(pre_date)
+        header_info["date_str"] = str(datetime.date(int(pre_date[0]), int(
+            pre_date[1]), int(pre_date[2])).strftime("%d %B %Y"))
 
-    # print(date)
-    # print(date.strftime("%d %B %Y"))
-    # datetime.datetime.strptime(pre_date, '%B %d, %Y').strftime('%A')
-    # for s, p, o in o_graph.triples((ontology_uri, DCTERMS.description, None)):
-    #     print(o)
-    #     print(o.language)
-    print(header_info)
-    # query_str = """
-    # select ?desc where {
-    #     owl:Ontology dcterms:description ?desc .
-    #     filter(
-    #         langMatches(lang(?desc), "%s"))
-    #     )
-    # }
-    #     """ % (lang)
-
-    # # names = {}
-    # for row in o_graph.query(query_str):
-    #     print(row)
-        # names[str(row.x)] = str(row.y)
+    return header_info
 
 
 def main():
     global lang
     global spec_pre
+    global dest
+    global l_index
 
     if (len(sys.argv) != 5):
         print_usage()
-
     specloc = sys.argv[1]
     temploc = sys.argv[2]
     dest = sys.argv[3]
@@ -669,6 +709,10 @@ def main():
     if lang.lower() not in ["en", "fr"]:
         print("Language selected is currently not supported")
         print_usage()
+
+    l_index = 0
+    if lang == "fr":
+        l_index = 1
 
     try:
         f = open(temploc, "r")
@@ -681,7 +725,6 @@ def main():
     spec_pre = [str(o) for s, p, o in o_graph.triples(((None, VANN.preferredNamespacePrefix, None)))][0]
 
     template = specgen(template, lang)
-    header_html()
     template += "<!-- specification regenerated by DocGen on %s-->" % time.strftime("%A, %B %d at %I:%M:%S %p %Z")
     save(template, dest)
 

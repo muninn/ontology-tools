@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/perl
 #Usage:
 # ./createTaxonomy ontology.owl Class lang
 # Class that you're interested in building a taxonomy for ex.
