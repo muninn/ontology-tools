@@ -12,25 +12,40 @@
 #journalArticle
 use strict;
 use MODS::Record qw(xml_string); 
+use RDF::Query::Client;
 use XML::LibXML;#
 use Digest::MD5 qw(md5_hex);
 use XML::XPath;
 use XML::XPath::XMLParser;
 use RDF::Trine;
+use RDF::Trine::Store::SPARQL;
 use RDF::Query;
 use XML::LibXML;
 use Digest::MD5 qw(md5 md5_hex);
 use open qw(:utf8);
 use Switch;
+use utf8;
+use open ':std', ':encoding(UTF-8)';
+if (! -f $ARGV[0]) {
+ print "mods2rdf.pl - Create bibo linked open data from a mods file.\n";
+ print "\nUsage:\n";
+ print "mods2rdf.pl [filename] [BaseURI]\n";
+ print "Where:\n";
+ print "[filename] - The filename of the mods file to read.\n";
+ print "[BaseURI] - (optional) The Base URI fragment to append to for this citation.\n";
+ exit 0;
+}
 my $xml_parser = XML::LibXML->new();
 $xml_parser->clean_namespaces(1);
 my $mods = MODS::Record->from_xml(IO::File->new($ARGV[0]));
 my $baseuri = "#local";
+
 if ($ARGV[1]) {
  $baseuri = $ARGV[1];
 }#if
 my $dom = XML::LibXML::Document->new( "1.0", "UTF-8" );
 my $docNode= $dom->createElementNS( "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:RDF" );
+$dom->setDocumentElement($docNode);
 $docNode->setAttribute("xmlns","http://localhost/OrlandoPubs");
 $docNode->setAttribute("foaf", "http://xmlns.com/foaf/0.1/");
 $docNode->setAttribute("dcterms", "http://purl.org/dc/terms/");
@@ -41,67 +56,148 @@ $docNode->setAttribute("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#");
 $docNode->setAttribute("rdfs", "http://www.w3.org/2000/01/rdf-schema#");
 $docNode->setAttribute("cwrc", "http://www.cwrc.ca/ontologies/cwrc#");
 $docNode->setAttribute("frbr", "http://purl.org/vocab/frbr/core#");
-#print $mods->get_genre();
-print lc($mods->get_genre()) . "\n";
-switch (lc($mods->get_genre()) . "") {
- case "book"		{ 
-  print "It's a book.\n";
-  my $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:Book");
-  $atitle->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", $baseuri); 
-  $docNode->addChild($atitle);
-  $docNode = $atitle;
-  for ($mods->get_name()) { 
-   $docNode->addChild(people($_, $dom)); 
+#  if ($mods->get_abstract()) {
+#   $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:abstract");
+#   $atitle->addChild($dom->createTextNode($mods->get_abstract()));
+#   $docNode->addChild($atitle);
+#  }
+#  my $mypublisher;
+#  if ($mods->get_originInfo()) {
+#   $mypublisher = publisher($mods->get_originInfo()->get_publisher(), $dom);      
+#   if ($mods->get_originInfo()->get_place) {
+#      $atitle = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:based_near");
+#      $atitle->addChild($dom->createTextNode($mods->get_originInfo()->get_place()->get_placeTerm()));
+#      $mypublisher->addChild($atitle);
+#   }#place
+#   my $relator = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:publisher");
+#   $relator->addChild($mypublisher);
+#   $docNode->addChild($relator);        
+#   if ($mods->get_originInfo()->get_copyrightDate()) {
+#     $atitle = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:issued");
+#     $atitle->addChild($dom->createTextNode($mods->get_originInfo()->get_copyrightDate()));
+#     $docNode->addChild($atitle);
+#   }#id
+#  }#if
+# } 
+# else {
+#  print $docNode->toString(2);
+  $docNode = createHostItem($docNode, $mods, $dom, $baseuri);
+# }#journalarticle  
+#}
+print $docNode->toString(2);
+############
+#
+# <relatedItem type="host"> 
+#
+############
+sub createHostItem {
+ my $docNode = $_[0];
+ my $mods =  $_[1];
+ my $dom = $_[2];
+ my $baseURI = $_[3];
+ my %documentTypes = (
+  "journal" => "Journal",
+  "journalarticle" => "AcademicArticle",
+  "book" => "Book",
+  "book chapter" => "Chapter",
+  "booksection" => "BookSection",
+  "born digital" => "Webpage",
+  "document" => "Document",
+  "conference publication" => "Proceedings",
+  "conferencePaper" => "AcademicArticle");
+  my $BiboClass=""; 
+  if (! exists $documentTypes{lc($mods->get_genre())}) {
+   #print "Warning, unknown genre " . lc($mods->get_genre()) . " replace with plain bibo:Document."; 
+   $BiboClass="Document";
+  } else {
+   $BiboClass= $documentTypes{lc($mods->get_genre())};
+  } 
+  my $localDoc = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:" . $BiboClass);
+  $localDoc->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", $baseURI); 
+  $docNode->addChild($localDoc);
+  ## Title
+  my $atitle = createTitle($mods, $dom);
+  if ($atitle) {
+   $localDoc->addChild($atitle);
   }
-  print "Title\n";
-  $atitle = createTitle($mods, $dom);
-  if ($atitle) {
-   $docNode->addChild($atitle);
+  ## People
+  for ($mods->get_name()) { 
+   $localDoc->addChild(people($_, $dom)); 
   }  
-  print "SubjectHeading\n";
-  $atitle = createSubjectHeadings($docNode, $mods, $dom);
+  ## SubjectHeading
+  $atitle = createSubjectHeadings($localDoc, $mods, $dom);
   if ($atitle) {
-   $docNode->addChild($atitle);
+   $localDoc->addChild($atitle);
   }  
-  print "Identifiers\n";
-  $docNode = createIdentifiers($docNode, $mods, $dom);
+  ##Identifiers
+  $localDoc = createIdentifiers($localDoc, $mods, $dom);
   if ($mods->get_abstract()) {
    $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:abstract");
    $atitle->addChild($dom->createTextNode($mods->get_abstract()));
-   $docNode->addChild($atitle);
+   $localDoc->addChild($atitle);
   }
+  ## 
   my $mypublisher;
   if ($mods->get_originInfo()) {
-   $mypublisher = publisher($mods->get_originInfo()->get_publisher(), $dom);      
-   if ($mods->get_originInfo()->get_place) {
-      $atitle = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:based_near");
-      $atitle->addChild($dom->createTextNode($mods->get_originInfo()->get_place()->get_placeTerm()));
+   if ($mods->get_originInfo()->get_publisher()) {
+    $mypublisher = publisher($mods->get_originInfo()->get_publisher(), $dom);      
+    if ($mods->get_originInfo()->get_place) {
+       $atitle = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:based_near");
+       $atitle->addChild($dom->createTextNode($mods->get_originInfo()->get_place()->get_placeTerm()));
       $mypublisher->addChild($atitle);
-   }#place
-   my $relator = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:publisher");
-   $relator->addChild($mypublisher);
-   $docNode->addChild($relator);        
+    }#place
+    my $relator = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:publisher");
+    $relator->addChild($mypublisher);
+    $localDoc->addChild($relator);        
+   } 
    if ($mods->get_originInfo()->get_copyrightDate()) {
      $atitle = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:issued");
      $atitle->addChild($dom->createTextNode($mods->get_originInfo()->get_copyrightDate()));
-     $docNode->addChild($atitle);
+     $localDoc->addChild($atitle);
    }#id
-  }#if
- } 
- case "journalarticle" {
-  print $mods->get_relatedItem()->get_genre() . "\n";  
-  my $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:AcademicArticle");
-  $atitle->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", $baseuri); 
-  $docNode->addChild($atitle);
-  $docNode = $atitle;
-  $atitle = createTitle($mods, $dom);
-  if ($atitle) {
-   $docNode->addChild($atitle);
-  }  
- }  
- else		{ print "previous case not true [" . lc($mods->get_genre())  . "]."; }
-}
-print $docNode->toString(2);
+  }#if  
+  ##
+  ##Check part data
+  if ($mods->get_part()) {
+    ##*** PART DATA ***
+    my $mainDocument = $dom->findnodes("/*[local-name()='RDF']/*")->pop();
+    if ($mods->get_part->get_detail(type => 'issue')) {
+      $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/","bibo:issue");
+      $atitle->addChild($dom->createTextNode($mods->get_part->get_detail(type => 'issue')->get_number()));
+      $mainDocument->addChild($atitle);
+    } #issue
+    if ($mods->get_part->get_detail(type => 'volume')) {
+      $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/","bibo:volume");
+      $atitle->addChild($dom->createTextNode($mods->get_part->get_detail(type => 'volume')->get_number()));
+      $mainDocument->addChild($atitle);
+    } #issue
+    if ($mods->get_part->get_detail(type => 'chapter')) {
+      $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/","bibo:chapter");
+      $atitle->addChild($dom->createTextNode($mods->get_part->get_detail(type => 'chapter')->get_number()));
+      $mainDocument->addChild($atitle);
+    } #issue
+    if ($mods->get_part->get_extent(unit => 'pages')) {    
+     if ($mods->get_part->get_extent(unit => 'pages')->get_start()) {
+      $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/","bibo:pageStart");
+      $atitle->addChild($dom->createTextNode($mods->get_part->get_extent(unit => 'pages')->get_start()));
+      $mainDocument->addChild($atitle);
+     }
+     if ($mods->get_part->get_extent(unit => 'pages')->get_end()) {
+      $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/","bibo:pageEnd");
+      $atitle->addChild($dom->createTextNode($mods->get_part->get_extent(unit => 'pages')->get_end()));
+      $mainDocument->addChild($atitle);      
+     }
+    }#extent    
+    print $mainDocument->nodeName . "------\n" ;
+  }
+  ##
+  if ($mods->get_relatedItem(type=>"host")) {
+   $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:isPartOf");
+   $localDoc->addChild($atitle);
+   my $nextDoc = createHostItem($atitle, $mods->get_relatedItem(type=>"host"),$dom,$baseURI . "-partof");
+  }    
+ return ($docNode);
+} 
 ############
 #   <subject>
 #      <topic>Social aspects</topic>
@@ -111,23 +207,33 @@ sub createSubjectHeadings {
  my $docNode = $_[0];
  my $mods =  $_[1];
  my $dom = $_[2];
- my $store = RDF::Trine::Store::Memory->new();
- my $model = RDF::Trine::Model->new($store);
  if ($mods->get_subject()) {
-  print "Loading subject heading.";
-  RDF::Trine::Parser->parse_url_into_model( "file:authoritiessubjects.rdfxml.skos", $model );
-  print " Loaded.\n";
+#  RDF::Trine::Parser->parse_url_into_model( "file:authoritiessubjects.rdfxml.skos", $model );
   for ($mods->get_subject()) {
-   my $queryString = $_->get_title();
+   my $queryString = $_->get_topic();
    print "[" . $queryString . "]\n";
-   my $query = RDF::Query->new('SELECT distinct ?uri WHERE { 
-   ?uri <http://www.w3.org/2004/02/skos/core#inScheme> <http://id.loc.gov/authorities/subjects> .
+#   ?uri <http://www.w3.org/2004/02/skos/core#inScheme> <http://id.loc.gov/authorities/subjects> .
+  my $queryString ="SELECT distinct ?uri WHERE {    
+   {   
    ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2004/02/skos/core#Concept> .
-   ?uri <http://www.w3.org/2004/02/skos/core#prefLabel> "' . $_. '" .  }');
-   my $iterator = $query->execute( $model );
-   while (my $row = $iterator->next) {
+   ?uri <http://www.w3.org/2004/02/skos/core#prefLabel> ?alabel .
+   FILTER (REGEX(?alabel, \"^" . lc($queryString) . "\$\",\"i\")) 
+   } UNION
+   {
+   ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2004/02/skos/core#Concept> .
+   ?uri <http://www.w3.org/2004/02/skos/core#altLabel> ?blabel .
+   FILTER (REGEX(?blabel, \"^" . lc($queryString) . "\$\",\"i\"))  
+   }
+   }";
+   my $query = RDF::Query::Client->new($queryString);
+   my $iterator = $query->execute("http://canlink.library.ualberta.ca/sparql" );
+   print "Warning: " . $query->error . "\n";
+   while (my $row = $iterator->next()) {
     my $astring = $row->{"uri"}->as_string(); 
-    print "[" . $astring . "]\n";
+    my $atitle = $dom->createElementNS("http://purl.org/dc/terms/", "dc:subject");
+    $atitle->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:resource", $astring);
+    $docNode->addChild($atitle);
+    print "Found [" . $astring . "]\n";
    }#while
   }##for 
  }
@@ -145,14 +251,19 @@ sub createIdentifiers {
   $docNode->addChild($atitle);
  }#doi
  for ($mods->get_identifier(type => "isbn")) {
-  $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:isbn");
-  $atitle->addChild($dom->createTextNode($_));
-  $docNode->addChild($atitle);
+  ## Deals with broken mods.
+  foreach my $aisbn (split(' ', $_)) {
+   $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:isbn");
+   $atitle->addChild($dom->createTextNode($aisbn));
+   $docNode->addChild($atitle);
+  }
  }#isbn
  for ($mods->get_identifier(type => "issn")) {
-  $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:issn");
-  $atitle->addChild($dom->createTextNode($_));
-  $docNode->addChild($atitle);
+  foreach my $aissn (split(' ', $_)) {
+   $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:issn");
+   $atitle->addChild($dom->createTextNode($aissn));
+   $docNode->addChild($atitle);
+  }
  }#isbn   
  return($docNode);
 }
@@ -207,7 +318,6 @@ sub people
   }
   $personalNode->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", "#" . md5_hex($mystring));
 #
-  print "[" . $mystring . "]";
   my $anode = $dom->createElementNS("http://purl.org/", "purl:dc");
   if ($name->get_namePart(type => "family")) {
    $anode = $dom->createElementNS("http://purl.org/dc/terms/", "foaf:lastName");
