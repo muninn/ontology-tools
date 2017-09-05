@@ -26,6 +26,7 @@ use open qw(:utf8);
 use Switch;
 use utf8;
 use open ':std', ':encoding(UTF-8)';
+my $baseuricmd = "";
 if (! -f $ARGV[0]) {
  print "mods2rdf.pl - Create bibo linked open data from a mods file.\n";
  print "\nUsage:\n";
@@ -38,10 +39,9 @@ if (! -f $ARGV[0]) {
 my $xml_parser = XML::LibXML->new();
 $xml_parser->clean_namespaces(1);
 my $mods = MODS::Record->from_xml(IO::File->new($ARGV[0]));
-my $baseuri = "#local";
-
-if ($ARGV[1]) {
- $baseuri = $ARGV[1];
+$baseuricmd = "#local";
+if (length($ARGV[1])>1) {
+ $baseuricmd = '#' . $ARGV[1];
 }#if
 my $dom = XML::LibXML::Document->new( "1.0", "UTF-8" );
 my $docNode= $dom->createElementNS( "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:RDF" );
@@ -81,7 +81,7 @@ $docNode->setAttribute("frbr", "http://purl.org/vocab/frbr/core#");
 # } 
 # else {
 #  print $docNode->toString(2);
-  $docNode = createHostItem($docNode, $mods, $dom, $baseuri);
+  $docNode = createHostItem($docNode, $mods, $dom, $baseuricmd);
 # }#journalarticle  
 #}
 print $docNode->toString(2);
@@ -104,10 +104,10 @@ sub createHostItem {
   "born digital" => "Webpage",
   "document" => "Document",
   "conference publication" => "Proceedings",
-  "conferencePaper" => "AcademicArticle");
+  "conferencepaper" => "Article");
   my $BiboClass=""; 
   if (! exists $documentTypes{lc($mods->get_genre())}) {
-   #print "Warning, unknown genre " . lc($mods->get_genre()) . " replace with plain bibo:Document."; 
+   print "Warning, unknown genre " . lc($mods->get_genre()) . " replace with plain bibo:Document."; 
    $BiboClass="Document";
   } else {
    $BiboClass= $documentTypes{lc($mods->get_genre())};
@@ -122,7 +122,7 @@ sub createHostItem {
   }
   ## People
   for ($mods->get_name()) { 
-   $localDoc->addChild(people($_, $dom)); 
+   $localDoc->addChild(people($_, $dom,$baseURI)); 
   }  
   ## SubjectHeading
   $atitle = createSubjectHeadings($localDoc, $mods, $dom);
@@ -139,8 +139,8 @@ sub createHostItem {
   ## 
   my $mypublisher;
   if ($mods->get_originInfo()) {
-   if ($mods->get_originInfo()->get_publisher()) {
-    $mypublisher = publisher($mods->get_originInfo()->get_publisher(), $dom);      
+   if ($mods->get_originInfo()->get_publisher()) { 
+    $mypublisher = publisher($mods->get_originInfo()->get_publisher(), $dom, $baseURI);      
     if ($mods->get_originInfo()->get_place) {
        $atitle = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:based_near");
        $atitle->addChild($dom->createTextNode($mods->get_originInfo()->get_place()->get_placeTerm()));
@@ -188,7 +188,6 @@ sub createHostItem {
       $mainDocument->addChild($atitle);      
      }
     }#extent    
-    print $mainDocument->nodeName . "------\n" ;
   }
   ##
   if ($mods->get_relatedItem(type=>"host")) {
@@ -295,8 +294,9 @@ sub publisher
 {
   my $publish = $_[0];
   my $dom = $_[1];  
+  my $baseuri = $_[2];
   my $personalNode = $dom->createElement("foaf:Organization");  
-  $personalNode->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", "#" . md5_hex($publish));
+  $personalNode->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", $baseuri . "-" . substr(md5_hex($publish),1,10) );
   my $anode = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:name");
    $anode->addChild($dom->createTextNode($publish));
    $personalNode->addChild($anode);  
@@ -309,14 +309,15 @@ sub people
 #      <namePart type="given">Lisa</namePart>
   my $name = $_[0];
   my $dom = $_[1];
+  my $baseuri = $_[2];
   my $relator = $dom->createElementNS("http://id.loc.gov/vocabulary/relators/", "rel:" . $name->get_role()->get_roleTerm());
   my $personalNode = $dom->createElement("foaf:Person");  
   $relator->addChild($personalNode);
-  my $mystring =   $name->get_namePart(type => "family") . " " . $name->get_namePart(type => "given") ;
+  my $mystring =    $name->get_namePart(type => "given") . " " . $name->get_namePart(type => "family")  ;
   if ($name->get_namePart(type => "termsOfAddress")) {
    $mystring = $name->get_namePart(type => "termsOfAddress") . " " . $mystring;
   }
-  $personalNode->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", "#" . md5_hex($mystring));
+  $personalNode->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", $baseuri . "-" . substr(md5_hex($mystring),1,10));
 #
   my $anode = $dom->createElementNS("http://purl.org/", "purl:dc");
   if ($name->get_namePart(type => "family")) {
