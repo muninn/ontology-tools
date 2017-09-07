@@ -1,15 +1,11 @@
 #!/usr/bin/env perl
 #
-#book
-#Book Chapter
-#Born Digital
-#book
-#bookSection
-#conference publication
-#conferencePaper
-#document
-#journal
-#journalArticle
+#
+#mods2rdf.pl
+#
+# Converts Library of Congress mods records into BIBO RDF instances.
+# This is not a comprehensive translation of all MODS variants.
+#
 use strict;
 use MODS::Record qw(xml_string); 
 use RDF::Query::Client;
@@ -84,7 +80,9 @@ $docNode->setAttribute("frbr", "http://purl.org/vocab/frbr/core#");
   $docNode = createHostItem($docNode, $mods, $dom, $baseuricmd);
 # }#journalarticle  
 #}
-print $docNode->toString(2);
+$dom->setEncoding("UTF-8");
+ 
+print $dom->toString(1);
 ############
 #
 # <relatedItem type="host"> 
@@ -107,7 +105,7 @@ sub createHostItem {
   "conferencepaper" => "Article");
   my $BiboClass=""; 
   if (! exists $documentTypes{lc($mods->get_genre())}) {
-   print "Warning, unknown genre " . lc($mods->get_genre()) . " replace with plain bibo:Document."; 
+   #print "Warning, unknown genre " . lc($mods->get_genre()) . " replace with plain bibo:Document."; 
    $BiboClass="Document";
   } else {
    $BiboClass= $documentTypes{lc($mods->get_genre())};
@@ -150,11 +148,17 @@ sub createHostItem {
     $relator->addChild($mypublisher);
     $localDoc->addChild($relator);        
    } 
+   # dateCreated
    if ($mods->get_originInfo()->get_copyrightDate()) {
      $atitle = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:issued");
      $atitle->addChild($dom->createTextNode($mods->get_originInfo()->get_copyrightDate()));
      $localDoc->addChild($atitle);
    }#id
+   if ($mods->get_originInfo()->get_dateCreated()) {
+    $atitle = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:date");
+    $atitle->addChild($dom->createTextNode($mods->get_originInfo()->get_dateCreated()));
+    $localDoc->addChild($atitle); 
+   }#if
   }#if  
   ##
   ##Check part data
@@ -210,7 +214,7 @@ sub createSubjectHeadings {
 #  RDF::Trine::Parser->parse_url_into_model( "file:authoritiessubjects.rdfxml.skos", $model );
   for ($mods->get_subject()) {
    my $queryString = $_->get_topic();
-   print "[" . $queryString . "]\n";
+   #print "[" . $queryString . "]\n";
 #   ?uri <http://www.w3.org/2004/02/skos/core#inScheme> <http://id.loc.gov/authorities/subjects> .
   my $queryString ="SELECT distinct ?uri WHERE {    
    {   
@@ -226,13 +230,13 @@ sub createSubjectHeadings {
    }";
    my $query = RDF::Query::Client->new($queryString);
    my $iterator = $query->execute("http://canlink.library.ualberta.ca/sparql" );
-   print "Warning: " . $query->error . "\n";
+   #print "Warning: " . $query->error . "\n";
    while (my $row = $iterator->next()) {
     my $astring = $row->{"uri"}->as_string(); 
     my $atitle = $dom->createElementNS("http://purl.org/dc/terms/", "dc:subject");
     $atitle->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:resource", $astring);
     $docNode->addChild($atitle);
-    print "Found [" . $astring . "]\n";
+    #print "Found [" . $astring . "]\n";
    }#while
   }##for 
  }
@@ -245,7 +249,7 @@ sub createIdentifiers {
  my $dom = $_[2];
  my $atitle;
  if ($mods->get_identifier(type => "doi")) {
-  $atitle = $dom->createElementNS("http://www.w3.org/2002/07/owl#", "owl:sameAs");
+  $atitle = $dom->createElementNS("http://purl.org/ontology/bibo/", "doi");
   $atitle->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:resource", "http://doi.org/" . $mods->get_identifier(type => "doi"));
   $docNode->addChild($atitle);
  }#doi
