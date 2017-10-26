@@ -570,10 +570,16 @@ $docNode->setAttribute("frbr", "http://purl.org/vocab/frbr/core#");
 # } 
 # else {
 #  print $docNode->toString(2);
-  $docNode = createHostItem($docNode, $mods, $dom, $baseuricmd);
+$dom->setEncoding("UTF-8");
+if (!(ref($mods) eq "MODS::Element::ModsCollection" )) {
+ $docNode = createHostItem($docNode, $mods, $dom, $baseuricmd);
+} else {
+ foreach my $mvalue ($mods->get_mods()) {
+  createHostItem($docNode, $mvalue, $dom, $baseuricmd);
+ }
+}
 # }#journalarticle  
 #}
-$dom->setEncoding("UTF-8");
  
 print $dom->toString(1);
 ############
@@ -598,6 +604,9 @@ sub createHostItem {
   "conferencepaper" => "Article",
   "web page" => "Webpage");
   my $BiboClass=""; 
+  #  <genre displayLabel="Item Type" authority="marcgt">book</genre>
+  # <relatedItem type="host">
+  #      <genre authority="marcgt">journal</genre>
   if (! exists $documentTypes{lc($mods->get_genre())}) {
    #print "Warning, unknown genre " . lc($mods->get_genre()) . " replace with plain bibo:Document."; 
    $BiboClass="Document";
@@ -850,7 +859,13 @@ sub people
   my $dom = $_[1];
   my $baseuri = $_[2];
   my $anode = $dom->createElementNS("http://purl.org/", "purl:dc");
-  my $relator = $dom->createElementNS("http://id.loc.gov/vocabulary/relators/", "rel:" . $name->get_role()->get_roleTerm());
+  my $myrole ="";
+  if ($name->get_role()) {
+   $myrole = $name->get_role()->get_roleTerm();
+  } else {
+   $myrole = "aut";
+  } 
+  my $relator = $dom->createElementNS("http://id.loc.gov/vocabulary/relators/", "rel:" . $myrole);
   my $personalNode = $dom->createElementNS("http://xmlns.com/foaf/0.1/","foaf:Person");  
   $relator->addChild($personalNode);
   my $mystring =    $name->get_namePart(type => "given") . " " . $name->get_namePart(type => "family")  ;
