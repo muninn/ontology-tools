@@ -4,3 +4,14 @@ Current Limitations of Document Generator
 
 
 using {_var_} to hold VAR
+
+
+OWL File Limitations:
+Ontology must have 
+vann:preferredNamespacePrefix
+dc:title
+dc:description
+owl:versionInfo
+
+NOW using urllib to get subject headings so it should give offline warning and dispose of subject headings and use raw url rather than trying to grab it
+
