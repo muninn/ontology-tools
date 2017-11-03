@@ -9,9 +9,6 @@ import urllib.request
 # log = Log("log/docgen")
 # log.test_name("Debugging Document Generator")
 
-# TODO:
-# remove splitting by '#'
-
 spec_url = None
 spec_ns = None
 spec_pre = None
@@ -398,8 +395,6 @@ def get_dl_html(prefix_str, term_dict, prefix):
             for x in term_dict[prefix]:
                 label = None
                 if spec_pre in x:
-                    # print(x)
-                    # print(get_full_uri(x.split(":")[1]))
                     label = get_label_dict(get_full_uri(x.split(":")[1]))
                 if label:
                     html_str += '<dd><a href="%s" style="font-family: monospace;" title="%s">%s</a></dd>' % (

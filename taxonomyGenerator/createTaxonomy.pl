@@ -14,7 +14,6 @@ my $xml_parser = XML::LibXML->new();
 $xml_parser->clean_namespaces(1);
 my $store = RDF::Trine::Store::Memory->new();
 my $model = RDF::Trine::Model->new($store);
-# parse some web data into the model, and print the count of resulting RDF statements
 if (scalar(@ARGV) != 3) {
     print "Insufficent Arguments Provided\n";
     print "Expected Usage:\n";
@@ -27,10 +26,21 @@ my $raw_file = 'file:'. $ARGV[0];
 my $taxonomy = $ARGV[1];
 my $lang = $ARGV[2];
 
-
 RDF::Trine::Parser->parse_url_into_model( $raw_file, $model );
-my @allmaps ;
-my $query = RDF::Query->new('SELECT * WHERE { ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://sparql.cwrc.ca/ontologies/cwrc#'.$taxonomy.'> .
+# gets base xml uri for use in other ontologies
+my $query = RDF::Query->new('SELECT * WHERE { ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Ontology>.
+}');
+my $iterator = $query->execute( $model );
+my $namespaceUri = "";
+while (my $row = $iterator->next) {
+    $row =~ s/{ uri=//;
+    $row =~ s/> }/#/;
+    $namespaceUri = $row;
+}
+
+my @allmaps;
+# Gets all instances of the chosen class
+my $query = RDF::Query->new('SELECT * WHERE { ?uri <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> '.$namespaceUri.$taxonomy.'> .
 ?uri <http://www.w3.org/2000/01/rdf-schema#label> ?label .
 FILTER(LANG(?label) = "" || LANGMATCHES(LANG(?label), "'.$lang.'"))
 }');
