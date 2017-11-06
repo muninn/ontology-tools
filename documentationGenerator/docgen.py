@@ -615,15 +615,19 @@ def save(template, dest, stdout=False):
 
 
 def get_webpage_title(url):
-    webpage = urllib.request.urlopen(url).read()
-    title = str(webpage).split('<title>')[1].split('</title>')[0]
+    title = url
+    try:
+        webpage = urllib.request.urlopen(url).read()
+        title = str(webpage).split('<title>')[1].split('</title>')[0]
+    except urllib.error.URLError:
+        print("%s is currently inaccessible" % url)
+        print("Unable to retrieve title from webpage.\n")
     return title
 
 
 def get_header_html():
     header = get_header()
     # print(header)
-
     html_str = """<h1 id="title">%s %s %s</h1>\n""" % (header["title"]
                                                        [0], trans_dict["specification"][l_index], header["version"][0])
     if header["logo"]:
