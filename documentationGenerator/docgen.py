@@ -72,14 +72,14 @@ trans_dict = {
 def print_usage():
     script = sys.argv[0]
     print("Usage:")
-    print("\t%s ontology prefix template destination [flags]\n" % script)
+    print("\t%s ontology template destination lang\n" % script)
     print("\t\tontology    : path to ontology file")
     print("\t\ttemplate    : HTML template path")
     print("\t\tdestination : specification destination")
     print("\t\tlanguage flags:")
     print("\t\t\ten   : english")
     print("\t\t\tfr   : french")
-    print("\nExamples:")
+    print("\nExample:")
     print("%s example.owl template.html destination.html en" % script)
     sys.exit(-1)
 
@@ -114,12 +114,19 @@ def get_domain_range_dict():
     return domain_dict, range_dict
 
 
+def get_uri_term(uri):
+    string = str(uri)
+    index = max(uri.rfind('#'), uri.rfind('/')) + 1
+    substring = string[index:]
+    return (substring)
+
+
 def get_instances(class_list):
     instances = []
     for owl_class in class_list:
         class_uri = spec_ns[owl_class]
         for s, p, o in o_graph.triples((None, RDF.type, class_uri)):
-            instances.append(str(s).split("#")[1])
+            instances.append(get_uri_term(s))
 
     instances = sorted(list(set(instances)))
     return instances
@@ -174,17 +181,18 @@ def specgen(template, language):
     ns_list[spec_pre] = spec_url
 
     # Gets sorted classes & property labels
-    class_list = [x.split("#")[1] for x in sorted(o_graph.subjects(None, OWL.Class))]
-    prop_list = [x.split("#")[1] for x in sorted(o_graph.subjects(None, OWL.ObjectProperty))]
+
+    class_list = [get_uri_term((x)) for x in sorted(o_graph.subjects(None, OWL.Class))]
+
+    prop_list = [get_uri_term((x)) for x in sorted(o_graph.subjects(None, OWL.ObjectProperty))]
 
     global domain_dict
     global range_dict
     domain_dict, range_dict = get_domain_range_dict()
 
     # Dict_list in specgen
-    skos_concepts = [str(s).split("#")[1] for s, p, o in sorted(
+    skos_concepts = [get_uri_term(s) for s, p, o in sorted(
         o_graph.triples((None, RDF.type, SKOS.ConceptScheme)))]
-
     instance_list = get_instances(class_list)
 
     # Build HTML list of terms.
@@ -385,8 +393,15 @@ def get_dl_html(prefix_str, term_dict, prefix):
             html_str += "<dl>\n"
             html_str += "<dt>%s:</dt>\n" % prefix_str
             for x in term_dict[prefix]:
-                html_str += '<dd><a href="%s" style="font-family: monospace;">%s</a></dd>' % (term_dict[prefix][
-                    x], str(x))
+                label = None
+                if spec_pre in x:
+                    label = get_label_dict(get_full_uri(x.split(":")[1]))
+                if label:
+                    html_str += '<dd><a href="%s" style="font-family: monospace;" title="%s">%s</a></dd>' % (
+                        term_dict[prefix][x], str(label), str(x))
+                else:
+                    html_str += '<dd><a href="%s" style="font-family: monospace;">%s</a></dd>' % (
+                        term_dict[prefix][x], str(x))
             html_str += "</dl>\n"
     return html_str
 
@@ -394,7 +409,7 @@ def get_dl_html(prefix_str, term_dict, prefix):
 def get_term_html(term_dict, term_type):
     label = str(term_dict["label"])
     uri = str(term_dict["uri"])
-    term = uri.split("#")[1]
+    term = get_uri_term(uri)
     comment = term_dict["comment"]
     defn = term_dict["defn"]
 
@@ -439,7 +454,7 @@ def get_term_html(term_dict, term_type):
 def get_dep_term_html(term_dict):
     label = str(term_dict["label"])
     uri = str(term_dict["uri"])
-    term = uri.split("#")[1]
+    term = get_uri_term(uri)
     comment = term_dict["comment"]
     defn = str(term_dict["defn"])
     replacement = str(term_dict["replacement"])
@@ -478,7 +493,7 @@ select * where {
             deprecated_uris.append(str(row.uri))
 
     deprecated_uris = sorted(deprecated_uris)
-    terms = [str(s).split("#")[1] for s in deprecated_uris]
+    terms = [get_uri_term(s) for s in deprecated_uris]
 
     html_str = '<h3 id="deprecated_list" >Global Cross Reference of Deprecated Terms</h3>'
     html_str += '<div class="az_list deprecated_list">'
@@ -600,13 +615,17 @@ def save(template, dest, stdout=False):
 
 
 def get_webpage_title(url):
-    webpage = urllib.request.urlopen(url).read()
-    title = str(webpage).split('<title>')[1].split('</title>')[0]
+    title = url
+    try:
+        webpage = urllib.request.urlopen(url).read()
+        title = str(webpage).split('<title>')[1].split('</title>')[0]
+    except urllib.error.URLError:
+        print("%s is currently inaccessible" % url)
+        print("Unable to retrieve title from webpage.\n")
     return title
 
 
 def get_header_html():
-
     header = get_header()
     # print(header)
     html_str = """<h1 id="title">%s %s %s</h1>\n""" % (header["title"]
@@ -678,7 +697,6 @@ def get_header():
         (ontology_uri, DCTERMS.rights, None))]
     header_info["subj"] = [str(o) for s, p, o in o_graph.triples(
         (ontology_uri, DCTERMS.subject, None))]
-
     pre_date = [str(o) for s, p, o in o_graph.triples(
         (ontology_uri, DCTERMS.date, None))][0].split("-")
     if len(pre_date) != 3:
@@ -698,7 +716,11 @@ def main():
     global dest
     global l_index
 
-    if (len(sys.argv) != 5):
+    if (len(sys.argv) > 5):
+        print("Too many arguments provided")
+        print_usage()
+    elif (len(sys.argv) < 5):
+        print("Too few arguments provided")
         print_usage()
     specloc = sys.argv[1]
     temploc = sys.argv[2]
@@ -710,6 +732,7 @@ def main():
         print("Language selected is currently not supported")
         print_usage()
 
+    lang = lang.lower()
     l_index = 0
     if lang == "fr":
         l_index = 1
