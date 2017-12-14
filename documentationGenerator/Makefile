@@ -48,7 +48,7 @@ $(DOCS_TEMPLATES): $(DOCS) $(ONTOLOGY).owl
 $(ONTOLOGY)-$(ONTOLOGY_DATE).dot: $(ONTOLOGY).owl
 	grep -v "rdfs:label" $(ONTOLOGY).owl  | grep -v "rdfs:comment"| grep -v "foaf:name" | grep -v "rdf:type" | rapper -o dot - "http://rdf.muninn-project.org/ontologies/"$(ONTOLOGY)"#" | grep -v "owl:Class" | grep -v "owl:ObjectProperty" > $(ONTOLOGY)-$(ONTOLOGY_DATE).dot
 
-$(ONTOLOGY)-template-$(ONTOLOGY_DATE)-$(O_LANG).html: $(ONTOLOGY)-template-$(O_LANG).html figures/religionTaxonomy-$(ONTOLOGY_DATE).svg
+$(ONTOLOGY)-template-$(ONTOLOGY_DATE)-$(O_LANG).html: $(ONTOLOGY)-template-$(O_LANG).html figures/religionTaxonomy-$(ONTOLOGY_DATE)-$(O_LANG).svg figures/politicalAffiliationTaxonomy-$(ONTOLOGY_DATE)-$(O_LANG).svg
 	sed "s/PREVIOUS_ONTOLOGY/$(PREVIOUS_ONTOLOGY)/g"  < $(ONTOLOGY)-template-$(O_LANG).html | sed "s/ONTOLOGY_LOGO/$(ONTOLOGY_LOGO)/g" | sed "s/ONTOLOGY_NAME/$(ONTOLOGY)/g"  | sed "s/ONTOLOGY_DATE/$(ONTOLOGY_DATE)/g" |  sed "s/ONTOLOGY_LONGDATE/$(ONTOLOGY_LONGDATE)/g"  | sed "s/ONTOLOGY_VERSION/$(ONTOLOGY_VERSION)/g"  | sed 's/ONTOLOGY_LOGO/$(ONTOLOGY_LOGO)/g'  > $(ONTOLOGY)-template-$(ONTOLOGY_DATE)-$(O_LANG).html
 
 $(ONTOLOGY)-template2-$(ONTOLOGY_DATE)-$(O_LANG).html: $(ONTOLOGY)-template-$(ONTOLOGY_DATE)-$(O_LANG).html $(ONTOLOGY)-citations.html
@@ -65,8 +65,14 @@ $(ONTOLOGY)-citations.html: cwrc-ref.bib
 cwrc-ref.bib:
 	curl  "https://api.zotero.org/groups/1018142/items/top?start=0&limit=100&format=bibtex&v=1" | grep -v "abstract = {" | grep -v "keywords = {" > cwrc-ref.bib
 
-figures/religionTaxonomy-$(ONTOLOGY_DATE).svg: cwrc.owl scripts/createReligionTaxonomy.pl
-	./scripts/createReligionTaxonomy.pl cwrc.owl | unflatten -l 5 -c 10 | dot -ofigures/religionTaxonomy-$(ONTOLOGY_DATE).svg -Tsvg 
+figures/religionTaxonomy-$(ONTOLOGY_DATE)-$(O_LANG).svg: cwrc.owl scripts/createTaxonomy.pl
+	./scripts/createTaxonomy.pl cwrc.owl Religion $(O_LANG) | unflatten -l 5 -c 10 | dot -ofigures/religionTaxonomy-$(ONTOLOGY_DATE)-$(O_LANG).svg -Tsvg 
+
+figures/politicalAffiliationTaxonomy-$(ONTOLOGY_DATE)-$(O_LANG).svg: cwrc.owl scripts/createTaxonomy.pl
+	./scripts/createTaxonomy.pl cwrc.owl PoliticalAffiliation $(O_LANG) | unflatten -l 5 -c 10 | dot -ofigures/politicalAffiliation-$(ONTOLOGY_DATE)-$(O_LANG).svg -Tsvg 
+
+# ./scripts/createTaxonomy.pl cwrc.owl Religion en
+# .scripts/createTaxonomy cwrc.owl PoliticalAffiliation en
 
 $(ONTOLOGY).html: $(ONTOLOGY)-$(ONTOLOGY_DATE)-EN.html
 	cp -f $(ONTOLOGY)-$(ONTOLOGY_DATE)-EN.html $(ONTOLOGY).html

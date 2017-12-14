@@ -640,9 +640,8 @@ def get_header_html():
     latest_url = url[:-1]
     version_type = "English"
     if lang == "en":
-        url += "FR-"
         version_type = "Française"
-    url += header["date"] + ".html"
+    url += header["date"] + "-FR.html"
     html_str += """(<a href="%s">Version %s</a>)</h3>\n""" % (url, version_type)
     html_str += "<dl>\n"
     if header["prior"]:

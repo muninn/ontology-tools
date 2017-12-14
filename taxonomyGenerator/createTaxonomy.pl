@@ -36,6 +36,7 @@ while (my $row = $iterator->next) {
     $row =~ s/{ uri=//;
     $row =~ s/> }/#/;
     $namespaceUri = $row;
+
 }
 
 my @allmaps;
@@ -59,9 +60,11 @@ while (my $row = $iterator->next) {
         print " " .$lhs . " -> " . $rhs . "\n";
     }
     my $uri = $astring;
+    my @temp =split(/#/, $uri, 3);
+    $uri =@temp[1];
     $uri =~ s/</"/;
     $uri =~ s/>/"/;
-    print " $lhs [label=\"" . $row->{"label"}->value()."\" URL=".$uri."target=\"_parent\"]\n";
+    print " $lhs [label=\"" . $row->{"label"}->value()."\" URL=\"#".$uri." target=\"_parent\"]\n";
 }
 print "}";
 exit 0;
