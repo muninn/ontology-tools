@@ -98,18 +98,12 @@ def get_domain_range_dict():
     domain_dict = {}
     for domain_class in domain_list:
         query_str = "select ?x where {?x rdfs:domain <" + str(domain_class) + ">}"
-        dom_props = []
-        for row in o_graph.query(query_str):
-            dom_props.append(str(row.x))
-        domain_dict[str(domain_class)] = dom_props
+        domain_dict[str(domain_class)] = [str(row.x) for row in o_graph.query(query_str)]
 
     range_dict = {}
     for range_class in range_list:
         query_str = "select ?x where {?x rdfs:range <" + str(range_class) + ">}"
-        rang_props = []
-        for row in o_graph.query(query_str):
-            rang_props.append(str(row.x))
-        range_dict[str(range_class)] = rang_props
+        range_dict[str(range_class)] = [str(row.x) for row in o_graph.query(query_str)]
 
     return domain_dict, range_dict
 
@@ -275,12 +269,7 @@ def cwrc_specific_properties(uri):
 
 def get_comment_list(uri):
     comment = [o for s, p, o in o_graph.triples(((uri, RDFS.comment, None)))]
-    comment_list = []
-    for x in comment:
-        if x.language == lang:
-            comment_list.append(str(x))
-
-    return comment_list
+    return [str(x) for x in comment if x.language == lang]
 
 
 def get_label_dict(uri):
@@ -330,12 +319,7 @@ def get_ns_obj(uri, ns_uri):
 
 def get_definition_list(uri):
     defn = [o for s, p, o in o_graph.triples(((uri, SKOS.definition, None)))]
-    defn_list = []
-    for x in defn:
-        if x.language == lang:
-            tempstr = str(x)
-            defn_list.append(tempstr)
-    return defn_list
+    return [str(x) for x in defn if x.language == lang]
 
 
 def create_dictionary_html(dictionary):
@@ -487,11 +471,7 @@ select * where {
     ?uri vs:term_status ?literal.
 }
     """
-    deprecated_uris = []
-    for row in o_graph.query(query_str):
-        if str(row.literal) == "deprecated":
-            deprecated_uris.append(str(row.uri))
-
+    deprecated_uris = [str(row.uri) for row in o_graph.query(query_str) if str(row.literal) == "deprecated"]
     deprecated_uris = sorted(deprecated_uris)
     terms = [get_uri_term(s) for s in deprecated_uris]
 
