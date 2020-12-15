@@ -53,6 +53,10 @@ $dom->setEncoding("UTF-8");
  my %documentTypes = (
  "article" => "AcademicArticle",
  "book" => "Book",
+ "webpage" => "Book",
+ "techreport" => "Book",
+ "electronic" => "Book",
+ "manual" => "Book",
  "inbook" => "BookSection",
   "inproceedings" => "Article",
   "proceedings" => "Proceedings");
@@ -61,8 +65,8 @@ $dom->setEncoding("UTF-8");
   while (my $entry = $parser->next ) {
             if ($entry->parse_ok) {
                     my $type    = $entry->type;
-                    print "bibo:" . $documentTypes{lc($type)} . "\n";
-                    print "#" . $entry->key . "\n";
+                    #print "bibo:" . $documentTypes{lc($type)} . "\n";
+                    #print "#" . $entry->key . "\n";
   my $localDoc = $dom->createElementNS("http://purl.org/ontology/bibo/", "bibo:" . $documentTypes{lc($type)});
   $localDoc->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", "#" . $entry->key); 
   my $localTitle = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:title");
