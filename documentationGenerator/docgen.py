@@ -1,8 +1,14 @@
 #!/usr/bin/python3
 import sys
 import rdflib
+from rdflib import ConjunctiveGraph, plugin
+from rdflib.serializer import Serializer
 import time
 import urllib.request
+import re 
+from pygments import highlight
+from pygments.lexers import get_lexer_by_name
+from pygments.formatters import HtmlFormatter
 
 # temp log library for debugging
 # from log import *
@@ -160,6 +166,59 @@ def get_high_lvl_nodes():
 
     return types
 
+#!/usr/bin/python3
+#
+#
+def createExamplar(exampleNumber, description, file):
+ localmg = ConjunctiveGraph()
+ localg = localmg.parse(file, format='xml', publicID='')
+ stringVersion = localg.serialize(format='xml', indent=3)
+ lexer = get_lexer_by_name("xml", stripall=True)
+ ttl = get_lexer_by_name("turtle", stripall=True)
+ jsonld = get_lexer_by_name("json", stripall=True)
+ formatter = HtmlFormatter(cssclass='rdfExStyle',linenos=True, full=False)
+ outputString = "<div class=\"exampleRDF\">"
+ outputString = outputString + '<div id="exampleRDF' 
+ outputString = outputString + str(exampleNumber) +  '">Example ' 
+ outputString = outputString + str(exampleNumber) + ' - ' + str(description)  + '</div>'
+ outputString = outputString + '<div class="exampleHeader">'
+ outputString = outputString + '  <a class="tablinks tabselected" href="#contentXML">XML/RDF</a>'
+ outputString = outputString + '  <a class="tablinks" href="#contentJSONLD">JSON-LD</a>'
+ outputString = outputString + '  <a class="tablinks" href="#contentTTL">TTL</a>'
+ outputString = outputString + '  <a class="tablinks" href="#contentNTRIPLES">N-TRIPLES</a>'
+ #outputString = outputString + '  <a class="tablinks" href="#contentRDFA">RDF A</a>'
+ outputString = outputString + '</div>'
+ outputString = outputString + '<div class="contentContainer">'
+ outputString = outputString + '<div class="RDFSelected contentrdf contentXML">'
+ outputString = outputString + '  <h3>RDF/XML Style</h3>'
+ outputString = outputString + highlight(stringVersion, lexer, formatter)
+ outputString = outputString + '</div>'
+ stringVersion = localg.serialize(format='json-ld', indent=3)
+ outputString = outputString + '<div class="contentrdf contentJSONLD">'
+ outputString = outputString + '<h3>JSON-LD</h3>'
+ outputString = outputString + highlight(stringVersion, jsonld, formatter)
+ outputString = outputString + '</div>'
+ stringVersion = localg.serialize(format='ttl', indent=3)
+ outputString = outputString + '<div class="contentrdf contentTTL">'
+ outputString = outputString + '<h3>Turtle</h3>'
+ outputString = outputString + highlight(stringVersion, ttl, formatter)
+ outputString = outputString + '</div>'
+ stringVersion = localg.serialize(format='ntriples', indent=3)
+ outputString = outputString + '<div class="contentrdf contentNTRIPLES">'
+ outputString = outputString + '<h3>Turtle</h3>'
+ outputString = outputString + highlight(stringVersion, lexer, formatter)
+ outputString = outputString + '</div>'
+ stringVersion = localg.serialize(format='xml', indent=3)
+ #outputString = outputString + '<div class="contentrdf contentRDFA">'
+ #outputString = outputString + '<h3>RDFa</h3>'
+ #outputString = outputString + highlight(stringVersion, lexer, formatter)
+ #outputString = outputString + '</div>'
+ outputString = outputString + '</div>'
+ outputString = outputString + '</div>'
+ return(outputString)
+
+
+
 
 def specgen(template, language):
     global spec_url
@@ -167,6 +226,7 @@ def specgen(template, language):
     global ns_list
     global namespace_dict
 
+    
     # getting all namespaces from o_graph
     all_ns = [n for n in o_graph.namespace_manager.namespaces()]
 
@@ -221,6 +281,16 @@ def specgen(template, language):
 
     template = template.format(_header_=get_header_html(), _azlist_=azlist_html,
                                _terms_=terms_html, _deprecated_=deprecated_html)
+                               
+    pattern = re.compile(r'importRDFExample\[(?P<label>.*?)\]\[(?P<file>.*?)\]')
+    locate = pattern.search(template)
+    totalExamples = 1
+    while locate:
+       print("Adding example #", totalExamples," with title ", locate.groupdict()['label'],".")
+       template = template.replace(locate.group(), createExamplar(totalExamples, locate.groupdict()['label'] , locate.groupdict()['file']))
+       totalExamples = totalExamples + 1
+       locate = pattern.search(template)
+
 
     return template
 
