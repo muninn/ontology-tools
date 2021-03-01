@@ -9,7 +9,6 @@ import re
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
-
 # temp log library for debugging
 # from log import *
 # log = Log("log/docgen")
@@ -165,10 +164,6 @@ def get_high_lvl_nodes():
         types.remove(x)
 
     return types
-
-#!/usr/bin/python3
-#
-#
 def createExamplar(exampleNumber, description, file):
  localmg = ConjunctiveGraph()
  localg = localmg.parse(file, format='xml', publicID='')
@@ -220,13 +215,13 @@ def createExamplar(exampleNumber, description, file):
 
 
 
+
 def specgen(template, language):
     global spec_url
     global spec_ns
     global ns_list
     global namespace_dict
 
-    
     # getting all namespaces from o_graph
     all_ns = [n for n in o_graph.namespace_manager.namespaces()]
 
@@ -281,7 +276,6 @@ def specgen(template, language):
 
     template = template.format(_header_=get_header_html(), _azlist_=azlist_html,
                                _terms_=terms_html, _deprecated_=deprecated_html)
-                               
     pattern = re.compile(r'importRDFExample\[(?P<label>.*?)\]\[(?P<file>.*?)\]')
     locate = pattern.search(template)
     totalExamples = 1
@@ -290,7 +284,6 @@ def specgen(template, language):
        template = template.replace(locate.group(), createExamplar(totalExamples, locate.groupdict()['label'] , locate.groupdict()['file']))
        totalExamples = totalExamples + 1
        locate = pattern.search(template)
-
 
     return template
 
@@ -710,9 +703,9 @@ def get_header_html():
 
     if lang == "en":
         version_type = "Française"
-        url += "-FR.html"
+        url += "-fr.html"
     else:
-        url += "-EN.html"
+        url += "-en.html"
 
     html_str += """ (<a href="%s">Version %s</a>)</h3>\n""" % (url, version_type)
     html_str += "<dl>\n"
@@ -720,22 +713,22 @@ def get_header_html():
         prior = header["prior"][0]
         html_str += """<dt>%s:</dt>\n""" % trans_dict["previous_ver"][l_index]
         html_str += """<dd><a href="%s">%s</a>\n""" % (prior, prior)
-        html_str += """(<a href="%s.owl">owl - rdf/xml</a>, """ % (prior)
-        html_str += """<a href="%s.ttl">ttl</a>, <a href="%s.nt">nt</a>)\n""" % (prior, prior)
+        html_str += """(<a href="%s.owl">rdf/xml</a>, """ % (prior)
+        html_str += """<a href="%s.ttl">ttl</a>, <a href="%s.nt">nt</a>, <a href="%s.jsonld">json-ld</a>)\n""" % (prior, prior, prior)
         html_str += """</dd>\n"""
 
     html_str += """<dt>%s:</dt>\n""" % (trans_dict["current_ver"][l_index])
     html_str += """<dd><a href="%s.html">%s.html</a>\n""" % (curr_url, curr_url)
-    html_str += """(<a href="%s.owl">owl-rdf/xml</a>,\n""" % (curr_url)
+    html_str += """(<a href="%s.owl">rdf/xml</a>,\n""" % (curr_url)
     html_str += """<a href="%s.ttl">ttl</a>,\n""" % (curr_url)
-    html_str += """<a href="%s.nt">nt</a>)\n""" % (curr_url)
+    html_str += """<a href="%s.nt">nt</a>, <a href="%s.jsonld">json-ld</a>)\n""" % (curr_url,curr_url)
     html_str += """</dd>\n"""
 
     html_str += """<dt>%s:</dt>\n""" % (trans_dict["latest_ver"][l_index])
     html_str += """<dd><a href="%s.html">%s.html</a>\n""" % (latest_url, latest_url)
-    html_str += """(<a href="%s.owl">owl-rdf/xml</a>,\n""" % (latest_url)
+    html_str += """(<a href="%s.owl">rdf/xml</a>,\n""" % (latest_url)
     html_str += """<a href="%s.ttl">ttl</a>,\n""" % (latest_url)
-    html_str += """<a href="%s.nt">nt</a>)\n""" % (latest_url)
+    html_str += """<a href="%s.nt">nt</a>, <a href="%s.jsonld">json-ld</a>)\n""" % (latest_url,latest_url)
     html_str += """</dd>\n"""
     html_str += """<dt>%s: %s</dt>\n""" % (trans_dict["last_ver"][l_index], header["version"][0])
     html_str += """<dd>Date: %s</dd>\n""" % header["date_str"]
@@ -768,6 +761,7 @@ def get_header():
         (ontology_uri, DCTERMS.rights, None))]
     header_info["subj"] = [str(o) for s, p, o in o_graph.triples(
         (ontology_uri, DCTERMS.subject, None))]
+    print(ontology_uri)
     pre_date = [str(o) for s, p, o in o_graph.triples(
         (ontology_uri, DCTERMS.date, None))][0].split("-")
     if len(pre_date) != 3:
