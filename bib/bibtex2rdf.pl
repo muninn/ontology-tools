@@ -20,6 +20,7 @@ use RDF::Query;
 use XML::LibXML;
 use Digest::MD5 qw(md5 md5_hex);
 use open qw(:utf8);
+use List::Util 1.33 'any';
 use Switch;
 use utf8;
 #use open ':std', ':encoding(UTF-8)';
@@ -39,7 +40,6 @@ if (! -f $ARGV[0]) {
 my $dom = XML::LibXML::Document->new( "1.0", "UTF-8" );
 my $docNode= $dom->createElementNS( "http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:RDF" );
 $dom->setDocumentElement($docNode);
-$docNode->setAttribute("xmlns","http://localhost/OrlandoPubs");
 $docNode->setAttribute("foaf", "http://xmlns.com/foaf/0.1/");
 $docNode->setAttribute("dcterms", "http://purl.org/dc/terms/");
 $docNode->setAttribute("rel", "http://id.loc.gov/vocabulary/relators/");
@@ -58,8 +58,10 @@ $dom->setEncoding("UTF-8");
  "electronic" => "Book",
  "manual" => "Book",
  "inbook" => "BookSection",
-  "inproceedings" => "Article",
-  "proceedings" => "Proceedings");
+ "incollection"  => "BookSection",
+ "inproceedings" => "Article",
+ "proceedings" => "Proceedings");
+ my %documentParent = ( "incollection"  => "Book");
  my $fh     = IO::File->new($ARGV[0]);
  my $parser = BibTeX::Parser->new($fh);
   while (my $entry = $parser->next ) {
@@ -80,6 +82,9 @@ $dom->setEncoding("UTF-8");
   foreach my $author (@editors) {
    my $localName = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:Person");
    $localName->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", "#" . $entry->key . "-" . md5_hex( $author) );
+   my $localstability = $dom->createElementNS("http://www.w3.org/2003/06/sw-vocab-status/ns#","vs:term_status");
+   $localstability->addChild($dom->createTextNode("Unstable"));
+   $localName->addChild($localstability);
    my $localProp = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:firstName");
    $localProp->addChild($dom->createTextNode( $author->first));
    $localName->addChild($localProp);
@@ -97,29 +102,40 @@ $dom->setEncoding("UTF-8");
 
 
   foreach my $author (@authors) {
-   my $localName = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:Person");
-   $localName->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", "#" . $entry->key . "-" . md5_hex( $author) );
-   my $localProp = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:firstName");
-   $localProp->addChild($dom->createTextNode( $author->first));
-   $localName->addChild($localProp);
-   $localProp = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:lastName");
-   $localName->addChild($localProp);
-   $localProp->addChild($dom->createTextNode( $author->last));
-   $localProp = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:creator");
-   $localProp->addChild($localName);
-   $localDoc->addChild($localProp);
-#    print $author->first . " "
+   if (!  any { /$author/ } @editors) {
+    my $localName = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:Person");
+    $localName->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:about", "#" . $entry->key . "-" . md5_hex( $author) );
+    my $localstability = $dom->createElementNS("http://www.w3.org/2003/06/sw-vocab-status/ns#","vs:term_status");
+    $localstability->addChild($dom->createTextNode("Unstable"));
+    $localName->addChild($localstability);
+    my $localProp = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:firstName");
+    $localProp->addChild($dom->createTextNode( $author->first));
+    $localName->addChild($localProp);
+    $localProp = $dom->createElementNS("http://xmlns.com/foaf/0.1/", "foaf:lastName");
+    $localName->addChild($localProp);
+    $localProp->addChild($dom->createTextNode( $author->last));
+    $localProp = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:creator");
+    $localProp->addChild($localName);
+    $localDoc->addChild($localProp);
+#     print $author->first . " "
 #                                . $author->von . " "
 #                                . $author->last . ", "
 #                                . $author->jr;
+    } else {
+     my $localProp = $dom->createElementNS("http://purl.org/dc/terms/", "dcterms:creator");
+     $localProp->setAttributeNS("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "rdf:resource", "#" . $entry->key . "-" . md5_hex( $author) );
+     $localDoc->addChild($localProp);
     }
+   }
     
    if ($entry->has("pages")) {
     my $localName = $dom->createElementNS("http://purl.org/ontology/bibo/","bibo:numPages");
     $localDoc->addChild($localName);
     $localName->addChild($dom->createTextNode($entry->field("pages")));
    }# 
-    
+   my $stability = $dom->createElementNS("http://www.w3.org/2003/06/sw-vocab-status/ns#","vs:term_status");
+   $stability->addChild($dom->createTextNode("Unstable"));
+   $localDoc->addChild($stability);
    }        
    
   }                  
