@@ -6,6 +6,8 @@ from rdflib.serializer import Serializer
 import time
 import urllib.request
 import re 
+import lxml.etree as ET
+from os import path
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
@@ -339,9 +341,18 @@ def create_term_extra(term_dict, uri):
         html_str += "</dl>\n"
 
     html_str += create_term_domran(uri)
+    html_str += get_term_documentation(uri)
     html_str += "</div>\n"
     return html_str
 
+def get_term_documentation(uri):
+    html_str = ""
+    if path.exists("doc/" + get_uri_term(uri) +"." + lang):
+     print("Adding addition documentation for term " + get_uri_term(uri) +".")
+     uridoc = open("doc/" + get_uri_term(uri) +"." + lang, "r", encoding="utf-8")
+     html_str  = uridoc.read()
+     uridoc.close()
+    return(html_str)
 
 def create_term_domran(uri):
     html_str = ""
@@ -668,16 +679,21 @@ def save(template, dest, stdout=False):
     if stdout:
         print(template)
     else:
-        f = open(dest, "w")
+        f = open(dest, "w",encoding="utf-8")
         f.write(template)
         f.close()
 
 
 def get_webpage_title(url):
-    title = url
+    title = ""
     try:
-        webpage = urllib.request.urlopen(url).read()
-        title = str(webpage).split('<title>')[1].split('</title>')[0]
+        myheaders = {'Accept': 'application/rdf+xml'}
+        req = urllib.request.Request(url, None, myheaders)
+        webpage = urllib.request.urlopen(req).read()
+        ns = {'madsrdf':'http://www.loc.gov/mads/rdf/v1#','rdf':'http://www.w3.org/1999/02/22-rdf-syntax-ns#'}
+        rootnode = ET.fromstring(webpage.decode('UTF-8','ignore'))
+        for textDes in rootnode.xpath("/rdf:RDF/madsrdf:Topic/madsrdf:authoritativeLabel[@xml:lang='en']/text()",namespaces=ns):
+         title = textDes
     except urllib.error.URLError:
         print("%s is currently inaccessible" % url)
         print("Unable to retrieve title from webpage.\n")
@@ -691,7 +707,7 @@ def get_header_html():
                                                        trans_dict["specification"][l_index],
                                                        header["version"][0])
     if header["logo"]:
-        html_str += """<img src="%s" align="right" width="350">\n""" % header["logo"][0]
+        html_str += """<img src="%s" align="right" max-height="400" max-width="350">\n""" % header["logo"][0]
 
     html_str += """<h2 id="subtitle">%s</h2>\n""" % header["desc"][0]
     html_str += """<h3 id="mymw-doctype">%s &mdash; %s""" % (trans_dict["draft"][l_index], header["date_str"])
@@ -735,6 +751,7 @@ def get_header_html():
     html_str += get_authors_html()
     html_str += get_contributors()
     html_str += "<dt>%s:</dt>\n" % trans_dict["subjects"][l_index]
+    print(header["subj"])
     for subj in header["subj"]:
         html_str += "<dd>\n"
         html_str += '<a href="%s">%s</a>' % (subj, get_webpage_title(subj))
@@ -803,7 +820,7 @@ def main():
         l_index = 1
 
     try:
-        f = open(temploc, "r")
+        f = open(temploc, "r", encoding="utf-8")
         template = f.read()
     except Exception as e:
         print("Error reading from template \"" + temploc + "\": " + str(e))
